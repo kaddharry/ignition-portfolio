@@ -1,0 +1,616 @@
+:root {
+    --bg: #090909;
+    /* Deep asphalt grey-black */
+    --primary: #ff0000;
+    /* Pure aggressive racing red */
+    --text: #ffffff;
+    --text-secondary: #999999;
+    font-size: 16px;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fast, fixed noise overlay for texture */
+.noise-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+    opacity: 0.6;
+    /* Tweak noise aggressively without heavy rendering cost */
+    transform: translateZ(0);
+    /* Force hardware compositing */
+}
+
+h1,
+h2,
+h3,
+h4,
+.anton-heading {
+    font-family: 'Anton', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    /* Tighter for tension */
+    line-height: 0.95;
+}
+
+.hw-accel {
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+img,
+video {
+    max-width: 100%;
+    border-radius: 0;
+}
+
+.section {
+    position: relative;
+    width: 100%;
+}
+
+/* =========================================================================
+   ROUGH RACING SHAPE UTILITY 
+   "Text going out of bounds for the shape enveloping it"
+   ========================================================================= */
+.shape-envelope {
+    position: relative;
+    display: inline-block;
+    z-index: 1;
+}
+
+/* Clean, standard tight envelop that overflows elegantly instead of chaotic per-item positions */
+.shape-envelope::before {
+    content: '';
+    position: absolute;
+    top: 25%;
+    left: 15%;
+    width: 70%;
+    height: 60%;
+    background-color: var(--primary);
+    z-index: -1;
+    transform: skewX(-15deg);
+    box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.9);
+}
+
+/* =========================================================================
+   SECTION 1 — INTRO TEXT 
+   ========================================================================= */
+.section--intro {
+    height: 200vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.intro-text__sequence {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.intro-text {
+    position: absolute;
+    font-size: clamp(4rem, 10vw, 8rem);
+    /* Slightly smaller for better overflow framing */
+    text-align: center;
+    opacity: 0;
+    transform: translateY(120%);
+    color: var(--text);
+    white-space: nowrap;
+    text-shadow: 3px 3px 0px #000;
+}
+
+/* More uniform, less messy bounds while maintaining racing aesthetic */
+#intro-text-1::before {
+    background-color: var(--primary);
+}
+
+#intro-text-2::before {
+    background-color: var(--text);
+    transform: skewX(-25deg);
+}
+
+#intro-text-3::before {
+    background-color: #333;
+    transform: skewX(-10deg);
+    border: 2px solid var(--primary);
+}
+
+
+/* =========================================================================
+   SECTION 2 — F1 VIDEO SCROLL
+   ========================================================================= */
+.section--video {
+    height: 700vh;
+    position: relative;
+    background: var(--bg);
+}
+
+.video-container {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+}
+
+#hero-lightpass {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    filter: grayscale(100%) contrast(120%);
+    transform: translateZ(0);
+}
+
+.video-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Rough vignette */
+    background: radial-gradient(circle, rgba(0, 0, 0, 0) 20%, rgba(9, 9, 9, 0.9) 100%);
+    z-index: 2;
+}
+
+/* Diagonal hazard tape effect on video edges */
+.video-overlay::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0, 0, 0, 0.2) 10px, rgba(0, 0, 0, 0.2) 20px);
+    pointer-events: none;
+}
+
+.video-text__sequence {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.video-text {
+    position: absolute;
+    font-size: clamp(3rem, 7vw, 6rem);
+    color: var(--primary);
+    text-align: center;
+    opacity: 0;
+    transform: translateY(120%);
+    text-shadow: 2px 2px 0px #000, 4px 4px 0px #000;
+    -webkit-text-stroke: 1px var(--primary);
+}
+
+/* Cleaner bounds for the video overlay without expensive mix-blend-modes */
+#v-text-1::before {
+    background-color: var(--text);
+    width: 80%;
+    left: 10%;
+    height: 50%;
+    top: 35%;
+}
+
+#v-text-2::before {
+    background-color: var(--bg);
+    border: 3px solid var(--primary);
+    width: 90%;
+    left: 5%;
+    height: 40%;
+    top: 30%;
+    transform: skewX(10deg);
+}
+
+#v-text-3::before {
+    background-color: var(--text);
+    width: 60%;
+    left: 20%;
+    height: 50%;
+    top: 25%;
+    transform: skewX(-25deg);
+}
+
+#v-text-4::before {
+    background-color: var(--primary);
+    height: 70%;
+    top: 15%;
+}
+
+
+/* =========================================================================
+   SECTION 3 — IDENTITY REVEAL
+   ========================================================================= */
+.section--identity {
+    height: 200vh;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    z-index: 5;
+}
+
+.identity-bg-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.2;
+    mix-blend-mode: luminosity;
+    z-index: -1;
+}
+
+.identity-content {
+    text-align: center;
+    opacity: 0;
+    position: relative;
+}
+
+.name-reveal {
+    font-size: clamp(5rem, 15vw, 12rem);
+    color: transparent;
+    -webkit-text-stroke: 2px var(--text);
+    position: relative;
+}
+
+.name-reveal::before {
+    content: '';
+    position: absolute;
+    top: 30%;
+    left: 10%;
+    width: 80%;
+    height: 40%;
+    background: var(--primary);
+    transform: skewX(-25deg);
+    z-index: -1;
+    box-shadow: 15px 15px 0px rgba(0, 0, 0, 0.5);
+}
+
+.role-reveal {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    color: #000;
+    background: var(--text);
+    display: inline-block;
+    padding: 0.5rem 2rem;
+    font-size: clamp(1rem, 2vw, 1.5rem);
+    letter-spacing: 0.4em;
+    margin-top: 1rem;
+    transform: skewX(-15deg);
+}
+
+/* =========================================================================
+   SECTION 4 — PROJECTS HORIZONTAL SCROLL
+   ========================================================================= */
+.section--projects {
+    height: 400vh;
+    background-color: var(--bg);
+}
+
+.projects-container {
+    width: 400vw;
+    height: 100vh;
+    display: flex;
+    flex-wrap: nowrap;
+}
+
+.project-panel {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    position: relative;
+}
+
+.project-info {
+    width: 40%;
+    padding: 8%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    background: transparent;
+}
+
+.project-info-inner {
+    transform: translateX(-120%);
+    will-change: transform, opacity;
+    opacity: 0;
+}
+
+/* Brutalist project count watermark */
+.project-info::before {
+    content: '0' counter(project-counter);
+    position: absolute;
+    top: 10%;
+    left: 5%;
+    font-family: 'Anton', sans-serif;
+    font-size: 20rem;
+    color: rgba(255, 255, 255, 0.03);
+    z-index: -1;
+    pointer-events: none;
+}
+
+.project-panel:nth-child(1) .project-info::before {
+    content: '01';
+}
+
+.project-panel:nth-child(2) .project-info::before {
+    content: '02';
+}
+
+.project-panel:nth-child(3) .project-info::before {
+    content: '03';
+}
+
+.project-panel:nth-child(4) .project-info::before {
+    content: '04';
+}
+
+.project-title {
+    font-size: clamp(4rem, 8vw, 7rem);
+    color: var(--text);
+    margin-bottom: 1rem;
+    line-height: 0.85;
+    text-shadow: 3px 3px 0 var(--primary);
+}
+
+.project-desc {
+    font-size: 1.1rem;
+    font-weight: 500;
+    line-height: 1.5;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 1rem;
+    border-left: 4px solid var(--primary);
+    max-width: 450px;
+    margin-bottom: 2rem;
+    transform: skewX(-5deg);
+}
+
+.tech-stack {
+    list-style: none;
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+}
+
+.tech-stack li {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #000;
+    background: var(--text);
+    padding: 0.4rem 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transform: skewX(-15deg);
+    transition: all 0.3s;
+}
+
+.tech-stack li:hover {
+    background: var(--primary);
+    color: #fff;
+    transform: skewX(-15deg) scale(1.1);
+}
+
+.project-visual {
+    width: 60%;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #050505;
+    clip-path: polygon(10% 0, 100% 0%, 100% 100%, 0% 100%);
+}
+
+.project-visual img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+    filter: grayscale(80%) contrast(110%);
+}
+
+.project-panel:hover .project-visual img {
+    transform: scale(1.1) rotate(2deg);
+    filter: grayscale(0%) contrast(120%);
+}
+
+/* =========================================================================
+   SECTION 5 — ABOUT
+   ========================================================================= */
+.section--about {
+    height: 150vh;
+    background-color: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5%;
+    border-top: 5px solid var(--text);
+}
+
+.about-content {
+    text-align: center;
+    max-width: 900px;
+}
+
+.about-heading {
+    font-size: clamp(3.5rem, 8vw, 6rem);
+    color: transparent;
+    -webkit-text-stroke: 2px var(--text);
+    margin-bottom: 2.5rem;
+}
+
+.about-heading::before {
+    background-color: var(--primary);
+    width: 50%;
+    left: 25%;
+    height: 60%;
+    top: 20%;
+    transform: skewX(-15deg);
+}
+
+.about-text {
+    font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    border: 2px solid #333;
+    padding: 3rem;
+    position: relative;
+}
+
+.about-text::before {
+    content: 'X';
+    position: absolute;
+    top: -15px;
+    left: -15px;
+    background: var(--primary);
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Anton';
+}
+
+/* =========================================================================
+   SECTION 6 — ENDING
+   ========================================================================= */
+.section--ending {
+    height: 200vh;
+    background-color: var(--primary);
+    /* Deep red clash at the end */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    clip-path: polygon(0 10%, 100% 0, 100% 100%, 0 100%);
+}
+
+.ending-content {
+    text-align: center;
+}
+
+.ending-heading {
+    font-size: clamp(4rem, 12vw, 10rem);
+    color: var(--bg);
+    margin-bottom: 4rem;
+    text-shadow: 5px 5px 0px var(--text);
+    line-height: 0.9;
+}
+
+.ending-heading::before {
+    background-color: var(--text);
+    width: 70%;
+    left: 15%;
+    height: 70%;
+    top: 15%;
+    transform: skewX(-25deg);
+}
+
+.contact-links {
+    display: flex;
+    gap: 2rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.contact-link {
+    color: var(--text);
+    text-decoration: none;
+    font-family: 'Anton', sans-serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    background: var(--bg);
+    padding: 1rem 3rem;
+    position: relative;
+    transition: all 0.2s ease;
+    transform: skewX(-15deg);
+    border: 2px solid transparent;
+}
+
+.contact-link span {
+    /* Inner span to un-skew text */
+    display: inline-block;
+    transform: skewX(15deg);
+}
+
+.contact-link:hover {
+    background: transparent;
+    color: var(--bg);
+    border: 2px solid var(--bg);
+    transform: skewX(-15deg) translateY(-10px);
+    box-shadow: 10px 10px 0 #000;
+}
+
+@media (max-width: 768px) {
+    .project-info {
+        width: 100%;
+        position: absolute;
+        bottom: 0;
+        height: auto;
+        padding: 2rem;
+        background: linear-gradient(to top, rgba(0, 0, 0, 1) 50%, rgba(0, 0, 0, 0));
+        justify-content: flex-end;
+    }
+
+    .project-visual {
+        width: 100%;
+        height: 100%;
+        clip-path: none;
+    }
+
+    .project-title {
+        font-size: 3rem;
+    }
+
+    .shape-envelope::before {
+        width: 90%;
+        left: 5%;
+    }
+}

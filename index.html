@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio | Creative Developer</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- GSAP & ScrollTrigger -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <!-- Lenis for smooth scroll -->
+    <script src="https://unpkg.com/@studio-freight/lenis@1.0.35/dist/lenis.min.js"></script>
+
+    <script src="js/scroll.js" defer></script>
+    <style>
+        #debug-logger {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 9999;
+            color: red;
+            background: black;
+            padding: 10px;
+            font-family: monospace;
+            display: none;
+        }
+
+        .scroll-indicator {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            opacity: 0.5;
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            z-index: 999;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.3;
+            }
+        }
+    </style>
+    <script>
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            const logger = document.getElementById('debug-logger');
+            if (logger) {
+                logger.style.display = 'block';
+                logger.innerHTML += `ERROR: ${msg} <br>Line: ${lineNo}<br><hr>`;
+            }
+            return false;
+        };
+    </script>
+</head>
+
+<body>
+    <div id="start-overlay"
+        style="position:fixed; top:0; left:0; width:100%; height:100%; background:#090909; z-index:99999; display:flex; align-items:center; justify-content:center; flex-direction:column; cursor:pointer;">
+        <h1 class="anton-heading"
+            style="color:var(--primary); font-size:clamp(3rem, 6vw, 5rem); margin-bottom:1rem; text-align:center;">
+            IGNITION SEQUENCE</h1>
+        <p style="color:white; font-family:'Inter'; font-weight:700; text-transform:uppercase; letter-spacing:4px;">
+            Click anywhere to start engine</p>
+    </div>
+    <div class="scroll-indicator" style="display:none;">Scroll Down</div>
+
+    <!-- Fixed Hardware-Accelerated Noise Overlay -->
+    <div class="noise-overlay hw-accel"></div>
+
+    <!-- Audio element for engine sound, autoplay prevented -->
+    <audio id="engineSound" src="audio/engine_audio.m4a" loop preload="auto"></audio>
+
+    <!-- SECTION 1 — INTRO TEXT -->
+    <section id="section-intro" class="section section--intro">
+        <div class="intro-text__sequence">
+            <h1 class="intro-text shape-envelope" id="intro-text-1">IT'S ABOUT BEING CALM.</h1>
+            <h1 class="intro-text shape-envelope" id="intro-text-2">FIGHTER PILOT MENTALITY.</h1>
+            <h1 class="intro-text shape-envelope" id="intro-text-3">I AM A SURVIVOR.</h1>
+        </div>
+    </section>
+
+    <!-- SECTION 2 — F1 VIDEO SCROLL -->
+    <section id="section-video" class="section section--video">
+        <div class="video-container">
+            <canvas id="hero-lightpass" class="hw-accel"></canvas>
+            <div class="video-overlay"></div>
+
+            <div class="video-text__sequence">
+                <h2 class="video-text shape-envelope" id="v-text-1">An industry like no other.</h2>
+                <h2 class="video-text shape-envelope" id="v-text-2">Others crack under pressure.</h2>
+                <h2 class="video-text shape-envelope" id="v-text-3">I'm never going to give up.</h2>
+                <h2 class="video-text shape-envelope" id="v-text-4">I'm going to make it.</h2>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3 — IDENTITY REVEAL -->
+    <section id="section-identity" class="section section--identity">
+        <video class="identity-bg-video" src="videos/engine.mp4" muted loop playsinline autoplay preload="auto"></video>
+        <div class="identity-content">
+            <h1 class="name-reveal">HARDIK KADD </h1>
+            <h2 class="role-reveal">Creative Developer</h2>
+        </div>
+    </section>
+
+    <!-- SECTION 4 — PROJECTS HORIZONTAL SCROLL -->
+    <section id="section-projects" class="section section--projects">
+        <div class="projects-container" id="projects-container">
+
+            <!-- Project 1 -->
+            <div class="project-panel">
+                <div class="project-info">
+                    <div class="project-info-inner">
+                        <h3 class="project-title">Ignition Portfolio</h3>
+                        <p class="project-desc">A high-performance scrollytelling experience designed to break the mold
+                            of sterile web templates. This brutalist, raw racing aesthetic proves that elite digital
+                            engineering doesn't have to play it safe. Built strictly for cinematic impact, speed, and
+                            unbreakable resilience.</p>
+                        <ul class="tech-stack">
+                            <li>GSAP Canvas</li>
+                            <li>Lenis Scroll</li>
+                            <li>Vanilla JS</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="project-visual">
+                    <img src="images/projects/project1.jpg" alt="Project Delta"
+                        onerror="this.src='https://placehold.co/800x600/111111/ff1a1a.jpg?text=Project+1';">
+                </div>
+            </div>
+
+            <!-- Project 2 -->
+            <div class="project-panel">
+                <div class="project-info">
+                    <div class="project-info-inner">
+                        <h3 class="project-title">Ignition Engine</h3>
+                        <p class="project-desc">A WebGL-powered 3D configurator for automotive enthusiasts to customize
+                            their dream builds.</p>
+                        <ul class="tech-stack">
+                            <li>Three.js</li>
+                            <li>GSAP</li>
+                            <li>React</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="project-visual">
+                    <img src="images/projects/project2.jpg" alt="Ignition Engine"
+                        onerror="this.src='https://placehold.co/800x600/111111/ff1a1a.jpg?text=Project+2';">
+                </div>
+            </div>
+
+            <!-- Project 3 -->
+            <div class="project-panel">
+                <div class="project-info">
+                    <div class="project-info-inner">
+                        <h3 class="project-title">Apex Dashboard</h3>
+                        <p class="project-desc">Data visualization platform parsing millions of entry points into an
+                            actionable, seamless UI.</p>
+                        <ul class="tech-stack">
+                            <li>D3.js</li>
+                            <li>Vue.js</li>
+                            <li>Firebase</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="project-visual">
+                    <img src="images/projects/project3.jpg" alt="Apex Dashboard"
+                        onerror="this.src='https://placehold.co/800x600/111111/ff1a1a.jpg?text=Project+3';">
+                </div>
+            </div>
+
+            <!-- Project 4 -->
+            <div class="project-panel">
+                <div class="project-info">
+                    <div class="project-info-inner">
+                        <h3 class="project-title">Vantage Agency</h3>
+                        <p class="project-desc">An award-winning digital agency site focused on micro-interactions and
+                            scrollytelling.</p>
+                        <ul class="tech-stack">
+                            <li>HTML5</li>
+                            <li>Vanilla JS</li>
+                            <li>Lenis</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="project-visual">
+                    <img src="images/projects/project4.jpg" alt="Vantage Agency"
+                        onerror="this.src='https://placehold.co/800x600/111111/ff1a1a.jpg?text=Project+4';">
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SECTION 5 — ABOUT -->
+    <section id="section-about" class="section section--about">
+        <div class="about-content">
+            <h2 class="about-heading shape-envelope">ENGINEERED FOR PERFECTION</h2>
+            <p class="about-text">
+                I combine robust engineering with premium aesthetics to build digital experiences that move fast and hit
+                hard. My process bridges the gap between design vision and technical execution.
+            </p>
+        </div>
+    </section>
+
+    <!-- SECTION 6 — ENDING -->
+    <section id="section-ending" class="section section--ending">
+        <div class="ending-content">
+            <h1 class="ending-heading shape-envelope">LET'S BUILD SOMETHING FAST.</h1>
+
+            <div class="contact-links">
+                <a href="mailto:hardikkadd314@gmail.com" class="contact-link"><span>EMAIL</span></a>
+                <a href="https://github.com/kaddharry" target="_blank" class="contact-link"><span>GITHUB</span></a>
+                <a href="https://www.linkedin.com/in/hardik-kadd-543b9734a/" target="_blank"
+                    class="contact-link"><span>LINKEDIN</span></a>
+            </div>
+        </div>
+    </section>
+
+</body>
+
+</html>
