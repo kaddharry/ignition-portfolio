@@ -16,11 +16,16 @@
     padding: 0;
 }
 
+html,
+body {
+    width: 100%;
+    position: relative;
+}
+
 body {
     background-color: var(--bg);
     color: var(--text);
     font-family: 'Inter', sans-serif;
-    overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -67,6 +72,68 @@ video {
 .section {
     position: relative;
     width: 100%;
+}
+
+.landscape-thrill-text {
+    display: none;
+}
+
+/* =========================================================================
+   PORTRAIT BLOCKER
+   ========================================================================= */
+#portrait-blocker {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #050505;
+    z-index: 9999999;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+}
+
+#portrait-blocker .rotate-icon {
+    font-size: 5rem;
+    color: var(--primary);
+    margin-bottom: 2rem;
+    animation: rotatePhone 2s infinite ease-in-out;
+}
+
+#portrait-blocker h2 {
+    color: var(--text);
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    margin-bottom: 1rem;
+    letter-spacing: 2px;
+}
+
+#portrait-blocker p {
+    color: var(--text-secondary);
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    font-size: 0.9rem;
+    max-width: 80%;
+}
+
+@keyframes rotatePhone {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    50% {
+        transform: rotate(-90deg);
+        color: #fff;
+    }
+
+    100% {
+        transform: rotate(-90deg);
+    }
 }
 
 /* =========================================================================
@@ -118,14 +185,15 @@ video {
 
 .intro-text {
     position: absolute;
-    font-size: clamp(4rem, 10vw, 8rem);
-    /* Slightly smaller for better overflow framing */
+    font-size: clamp(1.8rem, 8vw, 8rem);
     text-align: center;
     opacity: 0;
     transform: translateY(120%);
     color: var(--text);
-    white-space: nowrap;
+    white-space: normal;
     text-shadow: 3px 3px 0px #000;
+    width: 90%;
+    margin: 0 auto;
 }
 
 /* More uniform, less messy bounds while maintaining racing aesthetic */
@@ -134,7 +202,8 @@ video {
 }
 
 #intro-text-2::before {
-    background-color: var(--text);
+    background-color: transparent;
+    border: 4px solid var(--primary);
     transform: skewX(-25deg);
 }
 
@@ -211,11 +280,12 @@ video {
 
 .video-text {
     position: absolute;
-    font-size: clamp(3rem, 7vw, 6rem);
+    font-size: clamp(1.5rem, 7vw, 6rem);
     color: var(--primary);
     text-align: center;
     opacity: 0;
     transform: translateY(120%);
+    white-space: nowrap;
     text-shadow: 2px 2px 0px #000, 4px 4px 0px #000;
     -webkit-text-stroke: 1px var(--primary);
 }
@@ -287,10 +357,11 @@ video {
 }
 
 .name-reveal {
-    font-size: clamp(5rem, 15vw, 12rem);
+    font-size: clamp(2.5rem, 15vw, 12rem);
     color: transparent;
     -webkit-text-stroke: 2px var(--text);
     position: relative;
+    white-space: nowrap;
 }
 
 .name-reveal::before {
@@ -325,6 +396,7 @@ video {
 .section--projects {
     height: 400vh;
     background-color: var(--bg);
+    overflow: hidden;
 }
 
 .projects-container {
@@ -335,6 +407,7 @@ video {
 }
 
 .project-panel {
+    flex: 0 0 100vw;
     width: 100vw;
     height: 100vh;
     display: flex;
@@ -469,7 +542,7 @@ video {
     align-items: center;
     justify-content: center;
     padding: 0 5%;
-    border-top: 5px solid var(--text);
+    border-top: none;
 }
 
 .about-content {
@@ -588,29 +661,146 @@ video {
     box-shadow: 10px 10px 0 #000;
 }
 
-@media (max-width: 768px) {
-    .project-info {
-        width: 100%;
-        position: absolute;
-        bottom: 0;
-        height: auto;
-        padding: 2rem;
-        background: linear-gradient(to top, rgba(0, 0, 0, 1) 50%, rgba(0, 0, 0, 0));
-        justify-content: flex-end;
+/* =========================================================================
+   MOBILE RESPONSIVENESS AND LANDSCAPE LOCKS
+   ========================================================================= */
+
+@media (max-width: 768px) and (orientation: portrait) {
+    #portrait-blocker {
+        display: flex !important;
+    }
+
+    html,
+    body {
+        overflow: hidden !important;
+        height: 100vh !important;
+        touch-action: none;
+    }
+
+    #start-overlay {
+        display: none !important;
+    }
+}
+
+/* Landscape Mode for smaller phones (fixes height clipping for Grid panels) */
+@media (max-height: 500px) and (orientation: landscape) {
+    .project-info-inner {
+        transform: scale(0.65);
+        transform-origin: left center;
     }
 
     .project-visual {
-        width: 100%;
-        height: 100%;
-        clip-path: none;
+        padding: 5vh 5vw;
+    }
+
+    .project-visual a img {
+        max-height: 80vh;
+        width: auto;
+    }
+
+    .intro-text-sequence {
+        padding: 0 1rem;
     }
 
     .project-title {
         font-size: 3rem;
     }
 
-    .shape-envelope::before {
-        width: 90%;
+    .project-desc {
+        font-size: 1rem;
+        line-height: 1.2;
+    }
+}
+
+@media (max-width: 768px) {
+
+    /* Compress video section length */
+    .section--video {
+        height: 300vh;
+    }
+
+    /* Force responsive sizing to maintain 16:9 ratio in vertical screen without scaling height */
+    .video-container {
+        height: 56.25vw;
+        top: 30vh;
+        /* Centered visually on screen */
+    }
+
+    /* Keep the visual sequence container inside the 16:9 box */
+    #hero-lightpass {
+        height: 100%;
+        width: 100%;
+        object-fit: contain;
+    }
+
+    .section--identity {
+        height: 56.25vw;
+        margin: 25vh 0;
+        /* Space safely down from the previous section */
+    }
+
+    .name-reveal {
+        margin-top: 10%;
+        /* Center the text properly in compressed height */
+    }
+
+    /* Projects auto-tilt logic */
+    .project-panel.is-active .project-visual img {
+        transform: scale(1.1) rotate(2deg);
+        filter: grayscale(0%) contrast(120%);
+    }
+
+    .project-info {
+        width: 100%;
+        position: absolute;
+        bottom: 0;
+        height: auto;
+        padding: 8% 5% 15% 5%;
+        background: linear-gradient(to top, rgba(9, 9, 9, 0.98) 50%, rgba(9, 9, 9, 0));
+        justify-content: flex-end;
+    }
+
+    .project-info::before {
+        font-size: 10rem;
+        top: 25%;
         left: 5%;
+    }
+
+    .project-visual {
+        width: 100%;
+        height: 100vh;
+        clip-path: none;
+    }
+
+    .project-title {
+        font-size: clamp(2rem, 10vw, 3.5rem);
+    }
+
+    .project-desc {
+        font-size: 0.95rem;
+        max-width: 100%;
+        margin-bottom: 1.5rem;
+    }
+
+    .tech-stack li {
+        font-size: 0.7rem;
+        padding: 0.3rem 0.6rem;
+    }
+
+    .shape-envelope::before {
+        width: 95%;
+        left: 2.5%;
+    }
+
+    .contact-links {
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+    }
+
+    .contact-link {
+        font-size: 1.8rem;
+        width: 80%;
+        text-align: center;
     }
 }

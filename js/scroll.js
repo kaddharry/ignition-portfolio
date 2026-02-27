@@ -1,11 +1,31 @@
 // Wait for DOM content to load
 document.addEventListener("DOMContentLoaded", () => {
+// Advanced Idle Scroll Indicator Logic
+let scrollTimeout;
 
-// Remove scroll indicator when scrolling starts
-window.addEventListener('scroll', () => {
+const hideIndicator = () => {
     const ind = document.querySelector('.scroll-indicator');
-    if (ind) ind.style.display = 'none';
-}, { once: true });
+    if (ind && ind.style.opacity !== '0' && ind.style.display !== 'none') {
+        gsap.to(ind, { opacity: 0, duration: 0.2, onComplete: () => ind.style.display = 'none' });
+    }
+};
+
+const showIndicator = () => {
+    const ind = document.querySelector('.scroll-indicator');
+    const overlay = document.getElementById('start-overlay');
+    // Only show if the overlay is gone and user hasn't hit the absolute bottom
+    if (ind && overlay && overlay.style.display === 'none' && (window.innerHeight + window.scrollY) < document.body.offsetHeight - 100) {
+        ind.style.display = 'block';
+        gsap.to(ind, { opacity: 1, duration: 0.8 });
+    }
+};
+
+window.addEventListener('scroll', () => {
+    hideIndicator();
+    clearTimeout(scrollTimeout);
+    // 30 seconds idle timeout limit
+    scrollTimeout = setTimeout(showIndicator, 30000); 
+});
 
 try {
   // Register ScrollTrigger
@@ -65,7 +85,15 @@ try {
     gsap.to(startOverlay, { opacity: 0, duration: 0.5, onComplete: () => {
         startOverlay.style.display = 'none';
         const ind = document.querySelector('.scroll-indicator');
-        if (ind) ind.style.display = 'block';
+        if (ind) {
+           ind.style.opacity = '0';
+           ind.style.display = 'block';
+           gsap.to(ind, { opacity: 1, duration: 1 });
+        }
+        
+        // Start the idle timer immediately
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(showIndicator, 30000);
     }});
   }
 
@@ -169,8 +197,8 @@ try {
   ScrollTrigger.create({
     trigger: "#section-intro",
     start: "top+=140% top", 
-    endTrigger: "#section-identity",
-    end: "bottom top",
+    endTrigger: "#section-projects", // Modified to hold throughout the entire horizontal project scroll
+    end: "bottom center", // Fades out exactly when they scroll past Project 4 into the About section
     onEnter: () => {
       // Fades in normally without scrubbing
       if (engineSound && audioContextResumed) {
@@ -252,7 +280,7 @@ try {
   // Calculate the total horizontal movement distance based on panels
   const getHorizontalDistance = () => -(projectsContainer.scrollWidth - window.innerWidth);
 
-  gsap.to(projectsContainer, {
+  const horizontalTween = gsap.to(projectsContainer, {
     x: getHorizontalDistance,
     ease: "none",
     scrollTrigger: {
@@ -269,29 +297,47 @@ try {
   projectPanels.forEach((panel, i) => {
     const textInner = panel.querySelector(".project-info-inner");
     
-    gsap.fromTo(textInner,
-      { x: '-120%', opacity: 0 },
-      {
-        x: '0%', opacity: 1,
-        scrollTrigger: {
-          trigger: "#section-projects", 
-          start: () => `top top-=${i * window.innerWidth - window.innerWidth * 0.5}`,
-          end: () => `top top-=${i * window.innerWidth}`,
-          scrub: 1,
-          invalidateOnRefresh: true
-        }
-      }
-    );
-
-    gsap.to(textInner, {
-      x: '120%', opacity: 0,
+    const tl = gsap.timeline({
       scrollTrigger: {
-        trigger: "#section-projects", 
-        start: () => `top top-=${i * window.innerWidth + window.innerWidth * 0.5}`,
-        end: () => `top top-=${(i + 1) * window.innerWidth}`,
-        scrub: 1,
-        invalidateOnRefresh: true
+        trigger: panel,
+        containerAnimation: horizontalTween,
+        start: "left 85%", // Starts when left edge enters viewport
+        end: "right 15%",  // Finishes when right edge leaves viewport
+        scrub: 1
       }
+    });
+
+    if (i === 0) {
+      // First project is beautifully locked onscreen at start
+      gsap.set(textInner, { x: '0vw', opacity: 1 });
+      
+      // Hold frame
+      tl.to(textInner, { x: '0vw', opacity: 1, duration: 3 });
+      
+      // Exit frame
+      tl.to(textInner, { x: '-20vw', opacity: 0, duration: 1, ease: "power1.in" });
+
+    } else {
+      // Enter frame
+      tl.fromTo(textInner,
+        { x: '20vw', opacity: 0 },
+        { x: '0vw', opacity: 1, duration: 1, ease: "power1.out" }
+      );
+      
+      // Hold frame (Stays stable in center of screen)
+      tl.to(textInner, { x: '0vw', opacity: 1, duration: 2 });
+      
+      // Exit frame
+      tl.to(textInner, { x: '-20vw', opacity: 0, duration: 1, ease: "power1.in" });
+    }
+
+    // Toggle active class for Mobile Color/Tilt effect flawlessly based on physical center
+    ScrollTrigger.create({
+      trigger: panel,
+      containerAnimation: horizontalTween,
+      start: "left center",
+      end: "right center",
+      toggleClass: { targets: panel, className: "is-active" }
     });
   });
 
