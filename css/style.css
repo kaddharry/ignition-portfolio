@@ -684,17 +684,32 @@ video {
 
 /* Landscape Mode for smaller phones (fixes height clipping for Grid panels) */
 @media (max-height: 500px) and (orientation: landscape) {
+    .project-info {
+        justify-content: flex-start !important;
+        /* Forces top alignment, kills top-clipping */
+        padding-top: 10vh !important;
+        /* Small padding from top */
+        height: 100vh;
+        overflow-y: hidden;
+        /* Hide anything that spills off */
+    }
+
     .project-info-inner {
-        transform: scale(0.65);
-        transform-origin: left center;
+        display: flex;
+        flex-direction: column;
+        height: 80vh;
+        /* Contain inside visible area */
+        padding-left: 2rem !important;
+        /* Reset huge desktop paddings */
     }
 
     .project-visual {
-        padding: 5vh 5vw;
+        padding: 5vh 2vw;
     }
 
     .project-visual a img {
-        max-height: 80vh;
+        height: 85vh;
+        /* Scale photo cleanly */
         width: auto;
     }
 
@@ -703,12 +718,39 @@ video {
     }
 
     .project-title {
-        font-size: 3rem;
+        font-size: clamp(1.5rem, 4vw, 2.5rem);
+        margin-bottom: 0.2rem;
+        margin-top: 0;
+        line-height: 1.1;
     }
 
     .project-desc {
-        font-size: 1rem;
-        line-height: 1.2;
+        font-size: 0.75rem;
+        /* Shrink aggressively for mobile */
+        line-height: 1.3;
+        margin-bottom: 0.5rem;
+        max-width: 95%;
+        /* Hardware truncation natively solves overflow */
+        display: -webkit-box;
+        -webkit-line-clamp: 5;
+        line-clamp: 5;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .tech-stack {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: auto;
+        /* Pushes the tags to the absolute bottom of inner container */
+        margin-bottom: 0.5rem;
+    }
+
+    .tech-stack li {
+        font-size: 0.6rem;
+        padding: 0.2rem 0.4rem;
     }
 }
 
