@@ -665,7 +665,7 @@ video {
    MOBILE RESPONSIVENESS AND LANDSCAPE LOCKS
    ========================================================================= */
 
-@media (max-width: 768px) and (orientation: portrait) {
+@media (pointer: coarse) and (orientation: portrait) {
     #portrait-blocker {
         display: flex !important;
     }
@@ -754,7 +754,7 @@ video {
     }
 }
 
-@media (max-width: 768px) {
+@media (pointer: coarse) and (orientation: portrait) {
 
     /* Compress video section length */
     .section--video {
