@@ -757,9 +757,9 @@ video {
 
 @media (pointer: coarse) and (orientation: portrait) {
 
-    /* Compress video section length */
+    /* Expand video section physical distance to slow down thumb-swipe velocity */
     .section--video {
-        height: 300vh;
+        height: 600vh;
     }
 
     /* Force responsive sizing to maintain 16:9 ratio in vertical screen without scaling height */

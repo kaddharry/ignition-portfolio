@@ -66,18 +66,47 @@ try {
   // Audio setup
   const engineSound = document.getElementById('engineSound');
   let audioContextResumed = false;
+  let audioCtx, gainNode;
+
+  // iOS Hardware Override Proxy
+  const audioProxy = {
+      get volume() { return gainNode ? gainNode.gain.value : engineSound.volume; },
+      set volume(v) { 
+          engineSound.volume = v; // PC
+          if(gainNode) gainNode.gain.value = v; // iOS Master Mixer Override
+      }
+  };
 
   const startOverlay = document.getElementById('start-overlay');
   
   if (startOverlay) {
     startOverlay.addEventListener('click', () => {
-      // First click unlocks the AudioContext automatically allowing programatic plays
       if (engineSound) {
-        engineSound.volume = 0;
+        engineSound.muted = true; // Hard-mute silences the initial Safari autoplay pop
         let playPromise = engineSound.play();
+        
         if (playPromise !== undefined) {
           playPromise.then(() => {
             engineSound.pause();
+            engineSound.currentTime = 0;
+            engineSound.muted = false; // Restore stream capabilities
+            
+            // Instantiate digital AudioContext mixer exactly here
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if(!audioCtx && AudioContext) {
+                    audioCtx = new AudioContext();
+                    const source = audioCtx.createMediaElementSource(engineSound);
+                    gainNode = audioCtx.createGain();
+                    source.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    gainNode.gain.value = 0; // Initialize at absolute 0
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch(e) { console.warn("Web Audio API mixer bypassed", e); }
+
             audioContextResumed = true;
             finishOverlay();
           }).catch(error => {
@@ -326,19 +355,18 @@ try {
     trigger: "#section-intro",
     start: "top+=48% top", 
     onEnter: () => {
-      // Fire audio at max volume as user rips downward past intro text
       if (engineSound && audioContextResumed) {
          if (engineSound.paused) {
              engineSound.currentTime = 0;
              engineSound.play();
          }
-         gsap.to(engineSound, { volume: 1, duration: 2.5, ease: "power1.out" });
+         audioProxy.volume = 0; // Force baseline
+         gsap.to(audioProxy, { volume: 1, duration: 2.5, ease: "power1.out" });
       }
     },
     onLeaveBack: () => {
-      // User reversed entirely to the top of the page, smoothly shut down audio
       if (engineSound && audioContextResumed) {
-         gsap.to(engineSound, { volume: 0, duration: 2.5, onComplete: () => {
+         gsap.to(audioProxy, { volume: 0, duration: 2.5, onComplete: () => {
              engineSound.pause();
              engineSound.currentTime = 0;
          }});
@@ -353,7 +381,7 @@ try {
     start: "top center", // Begins identically when the block reaches the middle height of screen
     onEnter: () => {
       if (engineSound && audioContextResumed) {
-         gsap.to(engineSound, { volume: 0, duration: 2.5, ease: "power2.out", onComplete: () => {
+         gsap.to(audioProxy, { volume: 0, duration: 2.5, ease: "power2.out", onComplete: () => {
              engineSound.pause();
          }});
       }
@@ -361,7 +389,7 @@ try {
     onLeaveBack: () => {
       if (engineSound && audioContextResumed) {
          if (engineSound.paused) engineSound.play();
-         gsap.to(engineSound, { volume: 1, duration: 2.5, ease: "power2.in" });
+         gsap.to(audioProxy, { volume: 1, duration: 2.5, ease: "power2.in" });
       }
     }
   });
