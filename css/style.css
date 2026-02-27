@@ -527,7 +527,8 @@ video {
     filter: grayscale(80%) contrast(110%);
 }
 
-.project-panel:hover .project-visual img {
+.project-panel:hover .project-visual img,
+.project-panel.is-active .project-visual img {
     transform: scale(1.1) rotate(2deg);
     filter: grayscale(0%) contrast(120%);
 }
