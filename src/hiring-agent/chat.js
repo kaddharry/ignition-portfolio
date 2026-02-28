@@ -3,6 +3,33 @@ let sessionId = 'sid_' + Math.random().toString(36).substr(2, 9);
 let isAgentTyping = false;
 let clientName = '';
 let contactCardSubmitted = false;
+let isPostBookingMode = false;
+let postBookingStage = null; // null | 'awaiting_reschedule_time'
+let savedMessages = []; // visual message log for session persistence
+
+const KAI_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
+
+// ─── Persistence (localStorage + 48h TTL) ────────────────────────────────────
+function saveMessages() {
+  const fp = generateFingerprint();
+  try {
+    localStorage.setItem('kai_msgs_' + fp, JSON.stringify({ ts: Date.now(), msgs: savedMessages }));
+  } catch(e) {}
+}
+
+function loadSavedMessages() {
+  const fp = generateFingerprint();
+  try {
+    const raw = localStorage.getItem('kai_msgs_' + fp);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.ts > KAI_TTL_MS) {
+      localStorage.removeItem('kai_msgs_' + fp);
+      return [];
+    }
+    return parsed.msgs || [];
+  } catch(e) { return []; }
+}
 
 // ─── Spam Prevention ─────────────────────────────────────────────────────────
 function generateFingerprint() {
@@ -22,27 +49,46 @@ function generateFingerprint() {
 }
 
 function hasAlreadyBooked() {
-  const key = 'kai_booked_' + generateFingerprint();
-  return !!sessionStorage.getItem(key);
+  const fp = generateFingerprint();
+  try {
+    const raw = localStorage.getItem('kai_booked_' + fp);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (Date.now() - new Date(data.bookedAt).getTime() > KAI_TTL_MS) {
+      localStorage.removeItem('kai_booked_' + fp);
+      localStorage.removeItem('kai_msgs_' + fp);
+      return false;
+    }
+    return true;
+  } catch { return false; }
 }
 
 function getBookedData() {
   const key = 'kai_booked_' + generateFingerprint();
-  try { return JSON.parse(sessionStorage.getItem(key)); } catch { return null; }
+  try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
 }
 
-function markAsBooked(clientNameVal, projectTitleVal) {
+function markAsBooked(clientNameVal, projectTitleVal, meetLink, eventId, clientContact) {
   const fp = generateFingerprint();
   const key = 'kai_booked_' + fp;
-  sessionStorage.setItem(key, JSON.stringify({
+  localStorage.setItem(key, JSON.stringify({
     bookedAt: new Date().toISOString(),
     clientName: clientNameVal,
-    projectTitle: projectTitleVal
+    projectTitle: projectTitleVal,
+    meetLink: meetLink || '',
+    eventId: eventId || '',
+    fingerprint: fp
   }));
   fetch('/api/record-booking', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ fingerprint: fp, clientName: clientNameVal, projectTitle: projectTitleVal })
+    body: JSON.stringify({
+      fingerprint: fp,
+      clientName: clientNameVal,
+      projectTitle: projectTitleVal,
+      eventId: eventId || '',
+      clientContact: clientContact || ''
+    })
   }).catch(() => {});
 }
 
@@ -127,17 +173,63 @@ export function initChat(widgetContainer) {
         }
     });
     
-    // Spam guard: if already booked, show persistent message and lock input
+    // Already booked — restore silently, then check if Hardik took action
     if (hasAlreadyBooked()) {
         const bd = getBookedData();
-        appendMessage(
-            `Hey ${bd?.clientName || 'there'}! You already have a meeting request pending with Hardik for "${bd?.projectTitle || 'your project'}". He'll be in touch soon on your contact. 🔥`,
-            'bot'
-        );
-        inputField.disabled = true;
-        inputField.placeholder = 'Meeting already requested...';
-        sendBtn.disabled = true;
-        sendBtn.style.opacity = '0.4';
+        isPostBookingMode = true;
+
+        // Replay prior messages silently (no new welcome message added)
+        const prior = loadSavedMessages();
+        savedMessages = prior;
+        prior.forEach(m => {
+            const msgWrapper = document.createElement('div');
+            msgWrapper.className = `kai-msg ${m.role}`;
+            const bubble = document.createElement('div');
+            bubble.className = 'kai-bubble';
+            bubble.innerHTML = m.text;
+            msgWrapper.appendChild(bubble);
+            messagesContainer.appendChild(msgWrapper);
+        });
+
+        // Re-pin Meet link below history (not duplicated in savedMessages)
+        if (bd?.meetLink) {
+            const linkMsg = document.createElement('div');
+            linkMsg.className = 'kai-msg bot';
+            const linkBubble = document.createElement('div');
+            linkBubble.className = 'kai-bubble';
+            linkBubble.innerHTML = `🔗 Your Google Meet link: <a href="${bd.meetLink}" target="_blank">${bd.meetLink}</a>`;
+            linkMsg.appendChild(linkBubble);
+            messagesContainer.appendChild(linkMsg);
+        }
+
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        inputField.placeholder = 'Ask for link, reschedule or cancel...';
+
+        // Only append something new if Hardik took action (reschedule / cancel)
+        const fp = generateFingerprint();
+        fetch(`/api/booking-status?fp=${fp}`)
+            .then(r => r.json())
+            .then(statusData => {
+                const status = statusData.status || 'confirmed';
+                if (status === 'rescheduled' && statusData.newTime) {
+                    appendMessage(
+                        `📅 Hardik rescheduled your meeting to <b>${statusData.newTime}</b>. Your Meet link stays the same!`,
+                        'bot'
+                    );
+                } else if (status === 'cancelled') {
+                    appendMessage(
+                        `Hardik had to cancel this meeting. He'll reach out to you directly to rearrange. You're free to start a new booking now!`,
+                        'bot'
+                    );
+                    // Reset so they can rebook
+                    localStorage.removeItem('kai_booked_' + fp);
+                    localStorage.removeItem('kai_msgs_' + fp);
+                    isPostBookingMode = false;
+                    inputField.placeholder = 'Message...';
+                }
+                // If confirmed: say nothing new — user sees their restored history
+            })
+            .catch(() => {}); // fail silently — don't add noise
         return;
     }
 
@@ -149,13 +241,13 @@ function appendMessage(text, role) {
     msgWrapper.className = `kai-msg ${role}`;
     const bubble = document.createElement('div');
     bubble.className = 'kai-bubble';
-    
-    // Simple bolding formatter for agent replies
-    bubble.innerHTML = text.replace(/\\*\\*(.*?)\\*\\*/g, '<strong>$1</strong>');
-    
+    bubble.innerHTML = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     msgWrapper.appendChild(bubble);
     messagesContainer.appendChild(msgWrapper);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    // Persist to session
+    savedMessages.push({ text: bubble.innerHTML, role });
+    saveMessages();
 }
 
 function appendVNodes(node) {
@@ -169,10 +261,225 @@ async function sendInternalGreeting() {
 }
 
 async function sendMessage(text) {
+    // ─── POST-BOOKING STATE MACHINE ───────────────────────────────────────────
+    if (isPostBookingMode) {
+        appendMessage(text, 'user');
+        chatHistory.push({ role: 'user', content: text });
+        const lower = text.toLowerCase().trim();
+
+        // ─ Fuzzy typo helper (reschedule, cancel tolerate misspelling) ────────────
+        function fuzzyMatch(word, target) {
+            if (word.includes(target) || target.includes(word)) return true;
+            let ti = 0, matched = 0;
+            for (let c of word) {
+                if (ti < target.length && c === target[ti]) { matched++; ti++; }
+            }
+            return matched / target.length >= 0.75;
+        }
+        const words = lower.split(/\s+/);
+
+        // ─ Detect greeting / thanks — no action needed ──────────────────────
+        const isGreeting = /^(hi|hello|hey|thanks|thank you|ok|okay|great|cool|got it|noted|perfect|sounds good|nice|awesome|sure|alright|yep|yup|yes|no problem|np)\W*$/.test(lower);
+        if (isGreeting) {
+            setTimeout(() => appendMessage("You're all set! See you at the meeting 🔥", 'bot'), 400);
+            return;
+        }
+
+        // ─ Detect intents ────────────────────────────────────────────────────
+        const wantsLink =
+            lower.includes('link') || lower.includes('meet') ||
+            lower.includes('where') || lower.includes('send') ||
+            lower.includes('url') || lower.includes('join');
+
+        const wantsReschedule =
+            words.some(w => fuzzyMatch(w, 'reschedule')) ||
+            lower.includes('change') || lower.includes('different time') ||
+            lower.includes('new time') || lower.includes('postpone') ||
+            lower.includes('prepone') || lower.includes('move meeting') ||
+            lower.includes('shift meeting');
+
+        const wantsCancel =
+            words.some(w => fuzzyMatch(w, 'cancel')) ||
+            lower.includes('delete meeting') || lower.includes('remove meeting');
+
+        // ─ Stage: waiting for reschedule time ──────────────────────────────
+        if (postBookingStage === 'awaiting_reschedule_time') {
+            postBookingStage = null;
+            await handleClientReschedule(text);
+            return;
+        }
+
+        // ─ If reschedule keyword contains a time in the same message, act immediately ─
+        if (wantsReschedule) {
+            // Check if a time is already embedded (digit + am/pm or named day)
+            const hasTime = /\d/.test(lower) || /(monday|tuesday|wednesday|thursday|friday|tomorrow|today)/.test(lower);
+            if (hasTime) {
+                await handleClientReschedule(text);
+            } else {
+                postBookingStage = 'awaiting_reschedule_time';
+                setTimeout(() => appendMessage(
+                    'Sure! What new day and time works for you? (Mon–Fri, 5:30–9:30 PM IST)',
+                    'bot'
+                ), 400);
+            }
+            return;
+        }
+
+        if (wantsLink) {
+            const bd = getBookedData();
+            setTimeout(() => {
+                if (bd?.meetLink) {
+                    appendMessage(`🔗 Here's your Google Meet link: <a href="${bd.meetLink}" target="_blank">${bd.meetLink}</a>`, 'bot');
+                } else {
+                    appendMessage('Hardik will send your Meet link directly to your saved contact.', 'bot');
+                }
+            }, 400);
+            return;
+        }
+
+        if (wantsCancel) {
+            await handleClientCancel();
+            return;
+        }
+
+        // ─ Fallback hint (only if genuinely unclear) ─────────────────────────
+        setTimeout(() => appendMessage(
+            `I can help with:\n• "Send link" — get your Meet link\n• "Reschedule [day time]" — change the meeting\n• "Cancel" — cancel this meeting`,
+            'bot'
+        ), 400);
+        return;
+    }
+
+    // ─── NORMAL MODE ─────────────────────────────────────────────────────────
     appendMessage(text, 'user');
     chatHistory.push({ role: 'user', content: text });
     await fetchAgentResponse();
 }
+
+// ─── Handle client-initiated reschedule (validate + update calendar) ───────────
+async function handleClientReschedule(timeText) {
+    const bd = getBookedData();
+
+    // Parse the new time
+    let parsedISO = null;
+    try {
+        const parseRes = await fetch('/api/parse-time', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: timeText })
+        });
+        const parseData = await parseRes.json();
+        if (parseData.valid) parsedISO = parseData.iso;
+        if (!parseData.valid) {
+            setTimeout(() => appendMessage(
+                parseData.message || "That time is outside Hardik's availability. He's free Mon–Fri, 5:30–9:30 PM IST only.",
+                'bot'
+            ), 400);
+            return;
+        }
+    } catch(e) {
+        // If parse-time endpoint not available, fall back to notify only
+        await notifyRescheduleRequest(timeText);
+        setTimeout(() => appendMessage(
+            `📌 Got it! Hardik has been notified you'd like to reschedule to "${timeText}". He'll confirm on your saved contact.`,
+            'bot'
+        ), 400);
+        return;
+    }
+
+    // Attempt the actual calendar reschedule
+    appendMessage('⏳ Updating your calendar event...', 'bot');
+    try {
+        const reschedRes = await fetch('/api/client-reschedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fingerprint: generateFingerprint(),
+                newSlotISO: parsedISO,
+                eventId: bd?.eventId || ''
+            })
+        });
+        const reschedData = await reschedRes.json();
+
+        if (!reschedRes.ok) {
+            setTimeout(() => appendMessage(
+                reschedData.message || "Couldn't update that time. Hardik has been notified and will confirm on your contact.",
+                'bot'
+            ), 300);
+            await notifyRescheduleRequest(timeText);
+            return;
+        }
+
+        // Update localStorage with new eventId and time
+        const fp = generateFingerprint();
+        const stored = JSON.parse(localStorage.getItem('kai_booked_' + fp) || '{}');
+        stored.data.eventId = reschedData.eventId || stored.data.eventId;
+        stored.data.meetLink = reschedData.meetLink || stored.data.meetLink;
+        localStorage.setItem('kai_booked_' + fp, JSON.stringify(stored));
+
+        const istLabel = new Date(parsedISO).toLocaleString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata'
+        });
+
+        setTimeout(() => appendMessage(
+            `✅ Done! Your meeting is moved to <b>${istLabel} IST</b>.\n🔗 Meet link: <a href="${reschedData.meetLink}" target="_blank">${reschedData.meetLink}</a>`,
+            'bot'
+        ), 300);
+
+    } catch(e) {
+        await notifyRescheduleRequest(timeText);
+        setTimeout(() => appendMessage(
+            `📌 Hardik has been notified of your reschedule request. He'll confirm on your saved contact.`,
+            'bot'
+        ), 400);
+    }
+}
+
+// ─── Handle client-initiated cancel (delete calendar event + reset state) ─────
+async function handleClientCancel() {
+    const bd = getBookedData();
+    appendMessage('⏳ Cancelling your meeting...', 'bot');
+
+    // Call server to delete event & notify Hardik
+    try {
+        await fetch('/api/client-cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                fingerprint: generateFingerprint(),
+                eventId: bd?.eventId || '',
+                clientName: bd?.clientName || 'Client'
+            })
+        });
+    } catch(e) {
+        console.warn('[handleClientCancel] API call failed:', e);
+    }
+
+    // Clear all localStorage keys for this fingerprint
+    const fp = generateFingerprint();
+    localStorage.removeItem('kai_booked_' + fp);
+    localStorage.removeItem('kai_msgs_' + fp);
+    localStorage.removeItem('kai_chat_' + fp);
+    sessionStorage.clear();
+
+    // Reset all in-memory state — no page reload needed
+    setTimeout(() => {
+        isPostBookingMode = false;
+        postBookingStage = null;
+        contactCardSubmitted = false;
+        chatHistory = [];
+        savedMessages = [];
+
+        // Clear the messages container
+        messagesContainer.innerHTML = '';
+
+        // Show confirmation then a fresh greeting
+        appendMessage('✅ Meeting cancelled. Starting fresh — say hi whenever you\'re ready!', 'bot');
+        inputField.placeholder = 'Message...';
+    }, 600);
+}
+
 
 async function handleSend() {
     const text = inputField.value.trim();
@@ -232,68 +539,113 @@ async function fetchAgentResponse() {
             displayText = displayText.split('Perfect,')[0].trim();
         }
 
+        // Bug 3 guard: NEVER show contact card if reply is a time rejection
+        // The AI sometimes emits SHOW_CONTACT_CARD even in a rejection message
+        const isRejectionReply =
+            displayText.toLowerCase().includes("won't work") ||
+            displayText.toLowerCase().includes("doesn't work") ||
+            displayText.toLowerCase().includes("can you pick") ||
+            displayText.toLowerCase().includes("what day works") ||
+            displayText.toLowerCase().includes("not valid") ||
+            displayText.toLowerCase().includes("invalid") ||
+            displayText.toLowerCase().includes("can't book") ||
+            displayText.toLowerCase().includes("outside") ||
+            displayText.toLowerCase().includes("weekend") ||
+            displayText.toLowerCase().includes("in the past");
+        if (isRejectionReply) showCard = false;
+
         // Only show bot message if there's actual text
         if (displayText.length > 0) {
             appendMessage(displayText, 'bot');
             chatHistory.push({ role: 'assistant', content: displayText });
         }
 
-        // Inject card AFTER message text
+        // Inject card AFTER message text — only on acceptance
         if (showCard && !document.getElementById('kai-contact-card') && !contactCardSubmitted) {
             triggerContactCard();
         }
 
-        // TRIGGER: Final Summary → Book → Notify → Mark
+        // TRIGGER: Final Summary → Book → Notify → Enter Post-Booking Mode
         if (finalSummaryData) {
-            console.log('[chat] Summary data parsed:', finalSummaryData);
-            
+            console.log('[chat] Summary data:', finalSummaryData);
+
             (async () => {
                 try {
-                    // Step 1: Book the meeting in Google Calendar
                     let meetLink = '';
+                    let eventId = '';
                     let startTime = finalSummaryData.proposedSlot || '';
-                    try {
-                        const bookRes = await fetch('/api/book-meeting', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                slot: finalSummaryData.proposedSlot,
-                                clientName: finalSummaryData.clientName,
-                                clientEmail: finalSummaryData.clientEmail || '',
-                                clientContact: finalSummaryData.clientContact,
-                                projectTitle: finalSummaryData.projectTitle
-                            })
-                        });
-                        const bookData = await bookRes.json();
-                        console.log('[chat] Booking result:', bookData);
-                        meetLink = bookData.meetLink || '';
-                        startTime = bookData.startTime || startTime;
-                        if (meetLink) {
-                            appendMessage(`🔗 Your Google Meet link: <a href="${meetLink}" target="_blank">${meetLink}</a>`, 'bot');
-                        }
-                    } catch (bookErr) {
-                        console.warn('[chat] Booking failed (calendar not configured?):', bookErr.message);
-                    }
 
-                    // Step 2: Notify owner via Telegram
-                    const notifyRes = await fetch('/api/notify-owner', {
+                    // Use ISO slot from AI if available, fallback to natural language
+                    const slotToBook = finalSummaryData.proposedSlotISO || finalSummaryData.proposedSlot;
+
+                    // Step 1: Book meeting
+                    const bookRes = await fetch('/api/book-meeting', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            ...finalSummaryData,
-                            budgetTier: data.budgetTier || 'Unknown',
-                            meetLink: meetLink || 'Will be sent separately',
-                            meetingDateTime: startTime
+                            slot: slotToBook,
+                            clientName: finalSummaryData.clientName,
+                            clientEmail: finalSummaryData.clientEmail || '',
+                            clientContact: finalSummaryData.clientContact,
+                            projectTitle: finalSummaryData.projectTitle,
+                            sessionId
                         })
                     });
-                    const notifyData = await notifyRes.json();
-                    console.log('[chat] Notify response:', notifyData);
+                    const bookData = await bookRes.json();
+                    console.log('[chat] Book result:', bookRes.status, bookData);
 
-                    // Step 3: Spam prevention — mark this device as booked
-                    markAsBooked(finalSummaryData.clientName, finalSummaryData.projectTitle);
+                    // Handle failures — all return slots[] now
+                    if (!bookRes.ok) {
+                        const errCode = bookData.error;
+                        const returnedSlots = bookData.slots || [];
+
+                        if (errCode === 'slot_taken') {
+                            appendMessage('That slot is already taken! Here are the next available times — pick one:', 'bot');
+                        } else if (errCode === 'too_soon') {
+                            appendMessage('That time is too soon (need at least 1 hour notice). Here are available slots:', 'bot');
+                        } else if (errCode === 'outside_hours') {
+                            appendMessage('Hardik is only available Mon–Fri, 5:30–9:30 PM IST. Here are open slots:', 'bot');
+                        } else {
+                            appendMessage('Couldn’t lock in that time. Here are available slots to pick from:', 'bot');
+                        }
+
+                        if (returnedSlots.length > 0) {
+                            setTimeout(() => injectSlotPicker(returnedSlots, finalSummaryData), 600);
+                        } else {
+                            appendMessage(`No open slots right now, but Hardik will reach out on ${finalSummaryData.clientContact} to arrange a time. 🔥`, 'bot');
+                            await notifyOwner(finalSummaryData, '', startTime, data.budgetTier);
+                            markAsBooked(finalSummaryData.clientName, finalSummaryData.projectTitle, '', '', finalSummaryData.clientContact);
+                            enterPostBookingMode(finalSummaryData.clientName, finalSummaryData.clientContact);
+                        }
+                        return;
+                    }
+
+                    // Success!
+                    meetLink = bookData.meetLink || '';
+                    eventId = bookData.eventId || '';
+                    startTime = bookData.startTime || startTime;
+
+                    if (meetLink) {
+                        appendMessage(`🔗 Your Google Meet link: <a href="${meetLink}" target="_blank">${meetLink}</a>`, 'bot');
+                        // 48h warning bar
+                        const warnEl = document.createElement('div');
+                        warnEl.className = 'kai-ttl-warning';
+                        warnEl.textContent = '⚠ This chat will be available for 48 hours only';
+                        appendVNodes(warnEl);
+                    } else {
+                        appendMessage(`Your request is in! Hardik will send the Meet link to ${finalSummaryData.clientContact}. 🔥`, 'bot');
+                    }
+
+                    // Step 2: Notify owner
+                    await notifyOwner(finalSummaryData, meetLink, startTime, data.budgetTier);
+
+                    // Step 3: Mark as booked
+                    markAsBooked(finalSummaryData.clientName, finalSummaryData.projectTitle, meetLink, eventId, finalSummaryData.clientContact);
+                    enterPostBookingMode(finalSummaryData.clientName, finalSummaryData.clientContact);
 
                 } catch (err) {
-                    console.error('[chat] Post-summary pipeline error:', err);
+                    console.error('[chat] Pipeline error:', err);
+                    appendMessage('Something went wrong on our end. Hardik has been notified.', 'bot');
                 }
             })();
         }
@@ -413,4 +765,140 @@ function triggerContactCard() {
     });
 }
 
+// ─── Helper: Notify Owner ─────────────────────────────────────────────────────
+async function notifyOwner(summaryData, meetLink, startTime, budgetTier) {
+    try {
+        const fp = generateFingerprint();
+        const notifyRes = await fetch('/api/notify-owner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ...summaryData,
+                budgetTier: budgetTier || 'Unknown',
+                meetLink: meetLink || 'Will be sent separately',
+                meetingDateTime: startTime || summaryData.proposedSlot || 'TBD',
+                fingerprint: fp,
+                eventId: summaryData.eventId || ''
+            })
+        });
+        const notifyData = await notifyRes.json();
+        console.log('[chat] Notify response:', notifyData);
+    } catch (err) {
+        console.error('[chat] Notify failed:', err);
+    }
+}
 
+// ─── Helper: Enter post-booking restricted mode ────────────────────────────────
+function enterPostBookingMode(name, contact) {
+    isPostBookingMode = true;
+    inputField.placeholder = 'Ask for link, reschedule or cancel...';
+    setTimeout(() => {
+        appendMessage(
+            `You’re all set, ${name || 'there'}! 🔥\n\nMeeting confirmed — link is above.\n\n📌 Need to reschedule or cancel? Just tell me here.`,
+            'bot'
+        );
+    }, 900);
+}
+
+// ─── Helper: Inject slot picker on clash ─────────────────────────────────────
+function injectSlotPicker(slots, summaryData) {
+    const pickerEl = document.createElement('div');
+    pickerEl.className = 'kai-contact-card';
+    pickerEl.id = 'kai-slot-picker';
+    pickerEl.innerHTML = `
+      <div class="kai-contact-card-title">PICK A NEW SLOT</div>
+      ${slots.map((s, i) => `
+        <button class="kai-slot-btn" data-iso="${s.iso}" data-label="${s.time}">${s.time}</button>
+      `).join('')}
+    `;
+    appendVNodes(pickerEl);
+
+    pickerEl.querySelectorAll('.kai-slot-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const iso = btn.getAttribute('data-iso');
+            const label = btn.getAttribute('data-label');
+            pickerEl.remove();
+            appendMessage(`I'd like ${label}`, 'user');
+
+            try {
+                const bookRes = await fetch('/api/book-meeting', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        slot: iso,
+                        clientName: summaryData.clientName,
+                        clientEmail: summaryData.clientEmail || '',
+                        clientContact: summaryData.clientContact,
+                        projectTitle: summaryData.projectTitle,
+                        sessionId
+                    })
+                });
+                const bookData = await bookRes.json();
+
+                if (bookRes.status === 409) {
+                    appendMessage('That one just got taken too! Hardik will arrange a time on your contact.', 'bot');
+                    await notifyOwner(summaryData, '', label, '');
+                    markAsBooked(summaryData.clientName, summaryData.projectTitle);
+                    enterPostBookingMode(summaryData.clientName, summaryData.clientContact);
+                    return;
+                }
+
+                if (bookData.meetLink) {
+                    appendMessage(`\ud83d\udd17 Your Google Meet link: <a href="${bookData.meetLink}" target="_blank">${bookData.meetLink}</a>`, 'bot');
+                }
+                await notifyOwner(summaryData, bookData.meetLink || '', bookData.startTime || label, '');
+                markAsBooked(summaryData.clientName, summaryData.projectTitle);
+                enterPostBookingMode(summaryData.clientName, summaryData.clientContact);
+
+            } catch (e) {
+                appendMessage('Something went wrong. Hardik will be in touch directly.', 'bot');
+                console.error('[injectSlotPicker] Error:', e);
+            }
+        });
+    });
+}
+
+// ─── Client-initiated: Notify Hardik of reschedule request ────────────────────────
+async function notifyRescheduleRequest(newTime) {
+    const bd = getBookedData();
+    try {
+        await fetch('/api/notify-owner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientName: bd?.clientName || 'Client',
+                clientContact: bd?.clientContact || '',
+                projectTitle: '🔄 RESCHEDULE REQUEST',
+                projectDesc: `Client is requesting to reschedule their meeting to: "${newTime}"`,
+                meetLink: bd?.meetLink || '',
+                proposedSlot: newTime,
+                fingerprint: generateFingerprint(),
+                eventId: bd?.eventId || ''
+            })
+        });
+    } catch (e) {
+        console.error('[notifyRescheduleRequest] Failed:', e);
+    }
+}
+
+// ─── Client-initiated: Notify Hardik of cancellation request ──────────────────────
+async function notifyCancelRequest() {
+    const bd = getBookedData();
+    try {
+        await fetch('/api/notify-owner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientName: bd?.clientName || 'Client',
+                clientContact: bd?.clientContact || '',
+                projectTitle: '❌ CANCELLATION REQUEST',
+                projectDesc: `Client has requested to cancel their meeting.`,
+                meetLink: bd?.meetLink || '',
+                fingerprint: generateFingerprint(),
+                eventId: bd?.eventId || ''
+            })
+        });
+    } catch (e) {
+        console.error('[notifyCancelRequest] Failed:', e);
+    }
+}

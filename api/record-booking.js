@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
   
   try {
-    const { fingerprint, clientName, projectTitle } = req.body;
+    const { fingerprint, clientName, projectTitle, eventId, clientContact } = req.body;
     if (!fingerprint) return res.status(400).json({ error: 'Missing fingerprint' });
 
     const dataDir = path.join(process.cwd(), 'data');
@@ -22,9 +22,13 @@ module.exports = async (req, res) => {
     }
     
     bookings[fingerprint] = {
+      fingerprint,
       clientName: clientName || 'Unknown',
       projectTitle: projectTitle || 'Unknown',
-      bookedAt: new Date().toISOString()
+      clientContact: clientContact || '',
+      eventId: eventId || '',
+      bookedAt: new Date().toISOString(),
+      status: 'confirmed'  // confirmed | rescheduled | cancelled
     };
     
     fs.writeFileSync(filePath, JSON.stringify(bookings, null, 2));

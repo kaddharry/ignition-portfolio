@@ -1,13 +1,13 @@
 require('dotenv').config({ path: '.env.local' });
 const { callAI } = require('../lib/gemini');
-const { getSystemPrompt } = require('../lib/agentPrompt');
+const { getSystemPrompt, getPostBookingPrompt } = require('../lib/agentPrompt');
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
     
     try {
-        const { messages, sessionId } = req.body;
-        const systemPrompt = getSystemPrompt();
+        const { messages, sessionId, mode } = req.body;
+        const systemPrompt = mode === 'post_booking' ? getPostBookingPrompt() : getSystemPrompt();
         
         let reply = await callAI(messages, systemPrompt);
         
@@ -38,3 +38,4 @@ module.exports = async function handler(req, res) {
         res.status(500).json({ error: e.message });
     }
 };
+

@@ -530,3 +530,58 @@ body.kai-chat-open #portrait-blocker {
 .kai-contact-submit:active {
     transform: scale(0.98);
 }
+
+.kai-slot-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 4px;
+    color: #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.kai-slot-btn:hover {
+    background: rgba(255, 24, 1, 0.15);
+    border-color: #ff1801;
+    color: #ff1801;
+}
+
+.kai-slot-btn:active {
+    transform: scale(0.98);
+}
+
+/* 48h TTL Warning Bar */
+.kai-ttl-warning {
+    display: block;
+    width: 100%;
+    margin: 6px 0 10px;
+    padding: 7px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    color: #e8833a;
+    background: rgba(232, 131, 58, 0.08);
+    border-left: 2px solid #e8833a;
+    border-radius: 0 3px 3px 0;
+    animation: kaiTtlBlink 2.4s ease-in-out infinite;
+}
+
+@keyframes kaiTtlBlink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.45;
+    }
+}
