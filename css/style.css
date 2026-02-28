@@ -127,12 +127,12 @@ video {
     }
 
     50% {
-        transform: rotate(-90deg);
+        transform: rotate(90deg);
         color: #fff;
     }
 
     100% {
-        transform: rotate(-90deg);
+        transform: rotate(90deg);
     }
 }
 

@@ -5,3 +5,12 @@ dist-ssr
 .env
 .env.*
 .DS_Store
+.env.local
+.env.local.example
+.antigravity
+GEMINI.md
+node_modules/
+dist/
+scripts/get-google-token.js
+.vercel
+data/

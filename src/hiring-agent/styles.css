@@ -1,0 +1,532 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap');
+
+:root {
+    --kai-red: #ff1801;
+    --kai-bg: #0a0a0a;
+    --kai-surface: #111111;
+    --kai-border: rgba(255, 255, 255, 0.07);
+    --kai-text: #e8e8e8;
+    --kai-muted: #555555;
+    --kai-font: 'DM Mono', monospace;
+}
+
+/* Header */
+.kai-header {
+    display: flex;
+    align-items: center;
+    padding: 0 12px 0 16px;
+    height: 58px;
+    border-bottom: 1px solid #ff1801;
+    background: #0a0a0a;
+    flex-shrink: 0;
+    gap: 12px;
+}
+
+.kai-header-identity {
+    flex: 1;
+}
+
+.kai-header-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: 5px;
+    color: #ffffff;
+    line-height: 1;
+}
+
+.kai-header-sub {
+    font-family: var(--kai-font);
+    font-size: 8px;
+    letter-spacing: 5px;
+    color: #ff1801;
+    text-transform: uppercase;
+    margin-top: 1px;
+}
+
+.kai-header-status {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.kai-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: statusPulse 2s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+}
+
+.kai-status-text {
+    font-family: var(--kai-font);
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: #22c55e;
+}
+
+.kai-header-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.kai-btn-expand,
+.kai-btn-close {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    color: #666;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.kai-btn-expand:hover,
+.kai-btn-close:hover {
+    border-color: #ff1801;
+    color: #ff1801;
+}
+
+@media (max-width: 768px) {
+    .kai-btn-expand {
+        display: none;
+    }
+}
+
+/* FAB */
+#kai-fab {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: #ff1801;
+    border: none;
+    cursor: pointer;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    color: white;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 24px rgba(255, 24, 1, 0.4);
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 99998;
+    animation: kaiFabPulse 3s ease-in-out infinite;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@keyframes kaiFabPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 4px 24px rgba(255, 24, 1, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 4px 40px rgba(255, 24, 1, 0.7), 0 0 0 8px rgba(255, 24, 1, 0.08);
+    }
+}
+
+#kai-fab:hover {
+    transform: scale(1.08);
+}
+
+#kai-fab.open {
+    background: #0a0a0a;
+    border: 1px solid #ff1801;
+    color: #ff1801;
+    animation: none;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+    transform: scale(1);
+}
+
+/* Chat Window */
+#kai-widget-window {
+    position: fixed;
+    bottom: 92px;
+    right: 28px;
+    width: 380px;
+    height: 520px;
+    background: #0a0a0a;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 2px solid #ff1801;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 99997;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85);
+    transition: width 0.3s ease, height 0.3s ease, opacity 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#kai-widget-window.kai-hidden {
+    opacity: 0;
+    transform: translateY(16px);
+    pointer-events: none;
+}
+
+@media (max-width: 768px) {
+    #kai-widget-window {
+        width: calc(100vw - 32px) !important;
+        height: calc(100dvh - 124px) !important;
+        bottom: 100px !important;
+        right: 16px !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-left: 2px solid #ff1801 !important;
+        border-top: none;
+    }
+}
+
+body.kai-chat-open #portrait-blocker {
+    display: none !important;
+}
+
+/* Messages */
+.kai-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    scrollbar-width: thin;
+    scrollbar-color: #ff1801 transparent;
+}
+
+.kai-messages::-webkit-scrollbar {
+    width: 3px;
+}
+
+.kai-messages::-webkit-scrollbar-thumb {
+    background: #ff1801;
+    border-radius: 2px;
+}
+
+.kai-msg {
+    max-width: 82%;
+    animation: msgIn 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes msgIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.kai-msg.bot {
+    align-self: flex-start;
+}
+
+.kai-msg.user {
+    align-self: flex-end;
+    max-width: 78%;
+}
+
+.kai-msg.bot .kai-bubble {
+    background: #111;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 2px 10px 10px 10px;
+    color: #e8e8e8;
+    font-family: var(--kai-font);
+    font-size: 13px;
+    line-height: 1.7;
+    padding: 10px 14px;
+}
+
+.kai-msg.bot .kai-bubble strong {
+    color: #ff1801;
+    font-weight: 500;
+}
+
+.kai-msg.user .kai-bubble {
+    background: #ff1801;
+    border-radius: 10px 2px 10px 10px;
+    color: white;
+    font-family: var(--kai-font);
+    font-size: 13px;
+    line-height: 1.7;
+    padding: 10px 14px;
+}
+
+/* Typing Indicator */
+.kai-typing {
+    align-self: flex-start;
+    background: #111;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 2px 10px 10px 10px;
+    padding: 12px 16px;
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.kai-typing-dot {
+    width: 5px;
+    height: 5px;
+    background: #ff1801;
+    border-radius: 50%;
+    animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.kai-typing-dot:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.kai-typing-dot:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes typingBounce {
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+
+    30% {
+        transform: translateY(-5px);
+        opacity: 1;
+    }
+}
+
+/* Input Area */
+.kai-input-area {
+    display: flex;
+    gap: 8px;
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    background: #0d0d0d;
+    flex-shrink: 0;
+}
+
+.kai-input {
+    flex: 1;
+    background: #161616;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    color: #e8e8e8;
+    font-family: var(--kai-font);
+    font-size: 13px;
+    padding: 9px 12px;
+    outline: none;
+    resize: none;
+    line-height: 1.5;
+    max-height: 80px;
+    transition: border-color 0.15s;
+}
+
+.kai-input::placeholder {
+    color: #555;
+}
+
+.kai-input:focus {
+    border-color: #ff1801;
+}
+
+.kai-send-btn {
+    width: 38px;
+    height: 38px;
+    background: #ff1801;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-family: 'DM Mono', monospace;
+    font-weight: bold;
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.kai-send-btn:hover {
+    background: #cc1400;
+}
+
+.kai-send-btn:active {
+    transform: scale(0.95);
+}
+
+/* Footer */
+.kai-footer {
+    text-align: center;
+    font-family: var(--kai-font);
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: #555;
+    padding: 5px 0 8px;
+    flex-shrink: 0;
+}
+
+/* Contact Card UI */
+.kai-contact-card {
+    background: #111;
+    border: 1px solid rgba(255, 24, 1, 0.3);
+    border-left: 3px solid #ff1801;
+    border-radius: 4px;
+    padding: 16px;
+    margin: 4px 0;
+    width: 100%;
+    animation: cardSlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes cardSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes cardShake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-6px);
+    }
+
+    75% {
+        transform: translateX(6px);
+    }
+}
+
+.kai-contact-card.shake {
+    animation: cardShake 0.3s ease;
+    border-color: #ff1801;
+}
+
+.kai-contact-card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: #ff1801;
+    margin-bottom: 14px;
+}
+
+.kai-contact-field {
+    margin-bottom: 12px;
+}
+
+.kai-contact-field label {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: #888;
+    margin-bottom: 4px;
+    font-family: var(--kai-font);
+}
+
+.kai-contact-value {
+    font-size: 13px;
+    color: #888;
+    font-family: var(--kai-font);
+    padding: 8px 10px;
+    background: #0d0d0d;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.kai-contact-field input {
+    width: 100%;
+    background: #0d0d0d;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    color: #e8e8e8;
+    font-family: var(--kai-font);
+    font-size: 13px;
+    padding: 8px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.kai-contact-field input:focus {
+    border-color: #ff1801;
+}
+
+.kai-contact-field input.error {
+    border-color: #ff1801;
+    background: #1a0a0a;
+}
+
+.kai-field-hint {
+    font-size: 9px;
+    color: #555;
+    font-family: var(--kai-font);
+    margin-top: 3px;
+    display: block;
+}
+
+.kai-contact-note {
+    font-size: 10px;
+    color: #ff1801;
+    font-family: var(--kai-font);
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    opacity: 0.7;
+}
+
+.kai-contact-submit {
+    width: 100%;
+    background: #ff1801;
+    border: none;
+    border-radius: 3px;
+    color: white;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 3px;
+    padding: 10px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.kai-contact-submit:hover {
+    background: #cc1400;
+}
+
+.kai-contact-submit:active {
+    transform: scale(0.98);
+}
