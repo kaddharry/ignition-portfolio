@@ -9,15 +9,24 @@ module.exports = async (req, res) => {
         const { slot, clientName, clientEmail, clientContact, projectTitle, sessionId: callerSessionId } = req.body;
         console.log('[book-meeting] Request:', { slot, clientName, projectTitle });
 
-        // ── PARSE ─────────────────────────────────────────────────────────────
+        // ── PARSE ───────────────────────────────────────────────────────
+        // Check for past-relative words first (returns null intentionally)
+        const slotLower = (slot || '').toLowerCase();
+        const isPastWord =
+            slotLower.startsWith('yesterday') ||
+            slotLower.includes('last week') ||
+            slotLower.includes('last month');
+
         const eventStart = parseNaturalSlot(slot);
         if (!eventStart || isNaN(eventStart.getTime())) {
             console.warn('[book-meeting] Could not parse slot:', slot);
             let slots = [];
             try { slots = await getFreeSlots(); } catch(e) {}
             return res.status(400).json({
-                error: 'invalid_slot',
-                message: "That date doesn't exist or I couldn't understand it. Try something like 'Monday 7 PM' or 'March 15 6:30 PM'.",
+                error: isPastWord ? 'past_date' : 'invalid_slot',
+                message: isPastWord
+                    ? "That's a past date. Pick a future weekday (Mon–Fri), 5:30–9:30 PM IST."
+                    : "That date doesn't exist or I couldn't understand it. Try something like 'Monday 7 PM' or 'March 15 6:30 PM'.",
                 slots
             });
         }
