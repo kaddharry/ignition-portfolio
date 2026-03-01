@@ -1,0 +1,227 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><style>
+    #light-icon {
+      display: inline;
+    }
+    #dark-icon {
+      display: none;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      #light-icon {
+        display: none;
+      }
+      #dark-icon {
+        display: inline;
+      }
+    }
+  </style><g id="light-icon"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><g clip-path="url(#SvgjsClipPath1704)"><rect width="1000" height="1000" fill="#ffffff"></rect><g transform="matrix(2.5,0,0,2.5,0,0)"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="400" height="400"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Background -->
+  <rect width="400" height="400" fill="#0a0a0a"></rect>
+  
+  <!-- Red accent bar top -->
+  <rect x="0" y="0" width="400" height="4" fill="#ff1801"></rect>
+
+  <!-- F1 Car Side Silhouette — centered -->
+  <!-- Main body low nose -->
+  <path d="M 60 230 
+             L 90 210 
+             L 130 205 
+             L 160 195 
+             L 200 188
+             L 240 185
+             L 280 188
+             L 310 195
+             L 330 205
+             L 340 215
+             L 338 228
+             L 320 232
+             L 290 234
+             L 100 234
+             Z" fill="#ff1801"></path>
+
+  <!-- Cockpit hump -->
+  <path d="M 175 185 
+             L 185 162 
+             L 200 152 
+             L 218 150
+             L 235 155
+             L 248 168
+             L 255 185
+             Z" fill="#1a1a1a" stroke="#ff1801" stroke-width="2"></path>
+
+  <!-- Cockpit glass -->
+  <path d="M 183 183
+             L 191 164
+             L 203 156
+             L 218 154
+             L 232 160
+             L 241 175
+             L 244 183
+             Z" fill="#111" stroke="#333" stroke-width="1"></path>
+
+  <!-- Front wing -->
+  <path d="M 58 228
+             L 40 232
+             L 35 238
+             L 40 242
+             L 75 240
+             L 90 234
+             Z" fill="#ff1801"></path>
+
+  <!-- Front wing flap -->
+  <path d="M 35 238 L 35 244 L 75 244 L 75 240 Z" fill="#cc1400"></path>
+
+  <!-- Rear wing vertical -->
+  <rect x="308" y="190" width="8" height="36" rx="2" fill="#ff1801"></rect>
+  <rect x="318" y="190" width="8" height="36" rx="2" fill="#ff1801"></rect>
+
+  <!-- Rear wing horizontal -->
+  <rect x="296" y="188" width="48" height="10" rx="3" fill="#ff1801"></rect>
+  <rect x="300" y="198" width="40" height="5" rx="2" fill="#cc1400"></rect>
+
+  <!-- Front wheel -->
+  <circle cx="118" cy="242" r="28" fill="#111" stroke="#ff1801" stroke-width="3"></circle>
+  <circle cx="118" cy="242" r="16" fill="#1a1a1a"></circle>
+  <circle cx="118" cy="242" r="6" fill="#ff1801"></circle>
+  <!-- Wheel spokes -->
+  <line x1="118" y1="226" x2="118" y2="234" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="118" y1="250" x2="118" y2="258" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="102" y1="242" x2="110" y2="242" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="126" y1="242" x2="134" y2="242" stroke="#ff1801" stroke-width="2"></line>
+
+  <!-- Rear wheel -->
+  <circle cx="298" cy="242" r="32" fill="#111" stroke="#ff1801" stroke-width="3"></circle>
+  <circle cx="298" cy="242" r="19" fill="#1a1a1a"></circle>
+  <circle cx="298" cy="242" r="7" fill="#ff1801"></circle>
+  <!-- Wheel spokes -->
+  <line x1="298" y1="223" x2="298" y2="233" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="298" y1="251" x2="298" y2="261" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="279" y1="242" x2="289" y2="242" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="307" y1="242" x2="317" y2="242" stroke="#ff1801" stroke-width="2"></line>
+
+  <!-- Sidepod -->
+  <path d="M 175 210 L 175 230 L 265 230 L 270 215 L 260 208 Z" fill="#1a1a1a" stroke="#ff1801" stroke-width="1.5"></path>
+
+  <!-- Air intake on sidepod -->
+  <ellipse cx="210" cy="215" rx="18" ry="10" fill="#0a0a0a" stroke="#ff1801" stroke-width="1.5"></ellipse>
+
+  <!-- HK initials — bottom right of car body -->
+  <text x="225" y="228" font-family="Arial Black, sans-serif" font-size="13" font-weight="900" fill="#ff1801" letter-spacing="3">HK</text>
+
+  <!-- IGNITION text bottom -->
+  <text x="200" y="316" font-family="Arial Black, sans-serif" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="8">IGNITION</text>
+
+  <!-- Thin red underline -->
+  <rect x="80" y="322" width="240" height="2" fill="#ff1801"></rect>
+
+  <!-- Subtext -->
+  <text x="200" y="345" font-family="Arial, sans-serif" font-size="11" fill="#555" text-anchor="middle" letter-spacing="4">HARDIK KADD</text>
+
+  <!-- Red accent bar bottom -->
+  <rect x="0" y="396" width="400" height="4" fill="#ff1801"></rect>
+</svg></svg></g></g><defs><clipPath id="SvgjsClipPath1704"><rect width="1000" height="1000" x="0" y="0" rx="500" ry="500"></rect></clipPath></defs></svg></g><g id="dark-icon"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><g clip-path="url(#SvgjsClipPath1705)"><rect width="1000" height="1000" fill="#000000"></rect><g transform="matrix(2.5,0,0,2.5,0,0)"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="400" height="400"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Background -->
+  <rect width="400" height="400" fill="#0a0a0a"></rect>
+  
+  <!-- Red accent bar top -->
+  <rect x="0" y="0" width="400" height="4" fill="#ff1801"></rect>
+
+  <!-- F1 Car Side Silhouette — centered -->
+  <!-- Main body low nose -->
+  <path d="M 60 230 
+             L 90 210 
+             L 130 205 
+             L 160 195 
+             L 200 188
+             L 240 185
+             L 280 188
+             L 310 195
+             L 330 205
+             L 340 215
+             L 338 228
+             L 320 232
+             L 290 234
+             L 100 234
+             Z" fill="#ff1801"></path>
+
+  <!-- Cockpit hump -->
+  <path d="M 175 185 
+             L 185 162 
+             L 200 152 
+             L 218 150
+             L 235 155
+             L 248 168
+             L 255 185
+             Z" fill="#1a1a1a" stroke="#ff1801" stroke-width="2"></path>
+
+  <!-- Cockpit glass -->
+  <path d="M 183 183
+             L 191 164
+             L 203 156
+             L 218 154
+             L 232 160
+             L 241 175
+             L 244 183
+             Z" fill="#111" stroke="#333" stroke-width="1"></path>
+
+  <!-- Front wing -->
+  <path d="M 58 228
+             L 40 232
+             L 35 238
+             L 40 242
+             L 75 240
+             L 90 234
+             Z" fill="#ff1801"></path>
+
+  <!-- Front wing flap -->
+  <path d="M 35 238 L 35 244 L 75 244 L 75 240 Z" fill="#cc1400"></path>
+
+  <!-- Rear wing vertical -->
+  <rect x="308" y="190" width="8" height="36" rx="2" fill="#ff1801"></rect>
+  <rect x="318" y="190" width="8" height="36" rx="2" fill="#ff1801"></rect>
+
+  <!-- Rear wing horizontal -->
+  <rect x="296" y="188" width="48" height="10" rx="3" fill="#ff1801"></rect>
+  <rect x="300" y="198" width="40" height="5" rx="2" fill="#cc1400"></rect>
+
+  <!-- Front wheel -->
+  <circle cx="118" cy="242" r="28" fill="#111" stroke="#ff1801" stroke-width="3"></circle>
+  <circle cx="118" cy="242" r="16" fill="#1a1a1a"></circle>
+  <circle cx="118" cy="242" r="6" fill="#ff1801"></circle>
+  <!-- Wheel spokes -->
+  <line x1="118" y1="226" x2="118" y2="234" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="118" y1="250" x2="118" y2="258" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="102" y1="242" x2="110" y2="242" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="126" y1="242" x2="134" y2="242" stroke="#ff1801" stroke-width="2"></line>
+
+  <!-- Rear wheel -->
+  <circle cx="298" cy="242" r="32" fill="#111" stroke="#ff1801" stroke-width="3"></circle>
+  <circle cx="298" cy="242" r="19" fill="#1a1a1a"></circle>
+  <circle cx="298" cy="242" r="7" fill="#ff1801"></circle>
+  <!-- Wheel spokes -->
+  <line x1="298" y1="223" x2="298" y2="233" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="298" y1="251" x2="298" y2="261" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="279" y1="242" x2="289" y2="242" stroke="#ff1801" stroke-width="2"></line>
+  <line x1="307" y1="242" x2="317" y2="242" stroke="#ff1801" stroke-width="2"></line>
+
+  <!-- Sidepod -->
+  <path d="M 175 210 L 175 230 L 265 230 L 270 215 L 260 208 Z" fill="#1a1a1a" stroke="#ff1801" stroke-width="1.5"></path>
+
+  <!-- Air intake on sidepod -->
+  <ellipse cx="210" cy="215" rx="18" ry="10" fill="#0a0a0a" stroke="#ff1801" stroke-width="1.5"></ellipse>
+
+  <!-- HK initials — bottom right of car body -->
+  <text x="225" y="228" font-family="Arial Black, sans-serif" font-size="13" font-weight="900" fill="#ff1801" letter-spacing="3">HK</text>
+
+  <!-- IGNITION text bottom -->
+  <text x="200" y="316" font-family="Arial Black, sans-serif" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="8">IGNITION</text>
+
+  <!-- Thin red underline -->
+  <rect x="80" y="322" width="240" height="2" fill="#ff1801"></rect>
+
+  <!-- Subtext -->
+  <text x="200" y="345" font-family="Arial, sans-serif" font-size="11" fill="#555" text-anchor="middle" letter-spacing="4">HARDIK KADD</text>
+
+  <!-- Red accent bar bottom -->
+  <rect x="0" y="396" width="400" height="4" fill="#ff1801"></rect>
+</svg></svg></g></g><defs><clipPath id="SvgjsClipPath1705"><rect width="1000" height="1000" x="0" y="0" rx="500" ry="500"></rect></clipPath></defs></svg></g></svg>
