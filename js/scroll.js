@@ -77,6 +77,27 @@ try {
       }
   };
 
+  // Sound Toggle Configuration
+  const soundBtn = document.getElementById('sound-toggle');
+  let isManuallyMuted = false;
+
+  if (soundBtn) {
+      soundBtn.addEventListener('click', () => {
+          isManuallyMuted = !isManuallyMuted;
+          if (isManuallyMuted) {
+              soundBtn.textContent = 'SOUND OFF';
+              soundBtn.classList.add('muted');
+              if (audioCtx && audioCtx.state === 'running') audioCtx.suspend().catch(()=>{});
+              else engineSound.muted = true;
+          } else {
+              soundBtn.textContent = 'SOUND ON';
+              soundBtn.classList.remove('muted');
+              if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+              else engineSound.muted = false;
+          }
+      });
+  }
+
   const startOverlay = document.getElementById('start-overlay');
   
   if (startOverlay) {
@@ -127,6 +148,8 @@ try {
         // UNLOCK SYSTEMS AFTER CLEARING Start Engine Block
         lenis.start();
         document.body.style.overflow = "";
+        
+        if (soundBtn) soundBtn.style.display = 'block';
 
         const ind = document.querySelector('.scroll-indicator');
         if (ind) {

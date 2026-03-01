@@ -118,7 +118,6 @@ export function initChat(widgetContainer) {
           </div>
           <div class="kai-header-actions">
             <button class="kai-btn-expand" id="kai-expand-btn" title="Expand">⤢</button>
-            <button class="kai-btn-close" id="kai-close-btn" title="Close">×</button>
           </div>
         </div>
         <div class="kai-messages" id="kai-messages"></div>
@@ -137,24 +136,8 @@ export function initChat(widgetContainer) {
     sendBtn = document.getElementById('kai-send');
     typingIndicator = document.getElementById('kai-typing');
 
-    document.getElementById('kai-close-btn').addEventListener('click', () => {
-        document.getElementById('kai-widget-window').classList.add('kai-hidden');
-        document.getElementById('kai-fab').classList.remove('open');
-        document.body.classList.remove('kai-chat-open');
-        document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.width = '';
-        document.documentElement.style.overflow = '';
-        if (window._kaiAudioWasPaused) {
-            const audio = document.getElementById('engineSound');
-            if (audio) audio.play().catch(() => {});
-            window._kaiAudioWasPaused = false;
-        }
-        try { screen.orientation?.unlock?.(); } catch(e) {}
-        document.getElementById('kai-orient-lock')?.remove();
-        contactCardSubmitted = false;
-    });
-    
+
+
     let isExpanded = false;
     document.getElementById('kai-expand-btn').addEventListener('click', () => {
       isExpanded = !isExpanded;

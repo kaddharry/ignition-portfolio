@@ -97,6 +97,7 @@
 
     <!-- Audio element for engine sound, autoplay prevented -->
     <audio id="engineSound" src="audio/engine_audio.m4a" loop preload="auto"></audio>
+    <button id="sound-toggle" class="sound-toggle" style="display:none;">SOUND ON</button>
 
     <!-- SECTION 1 — INTRO TEXT -->
     <section id="section-intro" class="section section--intro">
@@ -140,13 +141,15 @@
                 <div class="project-info">
                     <div class="project-info-inner">
                         <h3 class="project-title">Ignition Portfolio</h3>
-                        <p class="project-desc">A high-performance scrollytelling experience designed to break the mold.
-                            It features <b>KAI</b>, a fully autonomous AI Concierge that acts as my 24/7 hiring agent.
+                        <p class="project-desc" data-lenis-prevent>A high-performance scrollytelling experience designed
+                            to break the mold.
+                            It features <b>KAI</b>, not just a simple automated AI agent, but a fully autonomous Agentic
+                            Manager which works 24*7 hours.
                             KAI dynamically qualifies leads, handles intent-based soft bookings, and syncs directly with
                             my Google Calendar — all running on a robust, state-of-the-art agentic architecture.</p>
                         <ul class="tech-stack">
-                            <li>Gemini & Groq Agents</li>
-                            <li>GSAP & Canvas</li>
+                            <li>GSAP & Lenis Scroll</li>
+                            <li>Vanilla JS & Canvas</li>
                             <li>Google Calendar Auth</li>
                         </ul>
                     </div>
@@ -162,14 +165,15 @@
                 <div class="project-info">
                     <div class="project-info-inner">
                         <h3 class="project-title">VLOOM</h3>
-                        <p class="project-desc">A Voice-First GenAI MERN platform connecting rural artisans to urban
+                        <p class="project-desc" data-lenis-prevent>A Voice-First GenAI MERN platform connecting rural
+                            artisans to urban
                             markets. Features a multilingual speech-to-text pipeline and LLM intent extraction, allowing
                             non-literate users to instantly generate structured product listings and inventory
                             dashboards purely via speech.</p>
                         <ul class="tech-stack">
                             <li>React & Three.js</li>
                             <li>Node & MongoDB</li>
-                            <li>Gemini & Groq AI</li>
+                            <li>STT and Llama integration</li>
                         </ul>
                     </div>
                 </div>
@@ -186,15 +190,19 @@
                 <div class="project-info">
                     <div class="project-info-inner">
                         <h3 class="project-title">Neural Syntax</h3>
-                        <p class="project-desc">A deep-dive into cutting-edge AI architecture. Beyond high-velocity
+                        <p class="project-desc" data-lenis-prevent>A deep-dive into cutting-edge AI architecture. Beyond
+                            high-velocity
                             Vision Models and low-latency STT/VAD pipelines, I specialize in building deterministic,
-                            goal-driven LLM Agents—like the custom architecture powering KAI. This involves mastering
-                            complex prompt engineering, strict multi-step validation logic, function calling, stateful
-                            session recovery, and seamless third-party API orchestration.</p>
+                            goal-driven LLM Agents—like the custom architecture powering KAI. This focuses on
+                            understanding
+                            underlying logic architecture and technical execution rather than conversational prompting,
+                            allowing me
+                            to build highly efficient autonomous agents that run and work entirely on their own.</p>
                         <ul class="tech-stack">
-                            <li>Agentic Architecture</li>
-                            <li>LLM Function Calling</li>
+                            <li>Agentic Architecture & LLM Funcs</li>
                             <li>Conv-Transformers</li>
+                            <li>YOLO Vision Models</li>
+                            <li>Low-Latency STT/VAD</li>
                         </ul>
                     </div>
                 </div>
@@ -209,10 +217,11 @@
                 <div class="project-info">
                     <div class="project-info-inner">
                         <h3 class="project-title">UPCOMING</h3>
-                        <p class="project-desc"
+                        <p class="project-desc" data-lenis-prevent
                             style="margin-bottom: 0.5rem; font-family: 'Anton', sans-serif; font-size: 1.5rem; letter-spacing: 2px; color: #fff;">
                             [ SYSTEM HINTS ]</p>
-                        <p class="project-desc">A scalable B2B architecture deploying autonomous AI Agents as
+                        <p class="project-desc" data-lenis-prevent>A scalable B2B architecture deploying autonomous AI
+                            Agents as
                             low-latency digital employees. Powered by deep RAG integration to dynamically handle
                             medical appointments, hospitality bookings, and enterprise customer service without human
                             intervention.</p>
@@ -239,6 +248,9 @@
             <p class="about-text">
                 I combine robust engineering with premium aesthetics to build digital experiences that move fast and hit
                 hard. My process bridges the gap between design vision and technical execution.
+                <br><br>
+                <span style="color: var(--text);">Ready to build something incredible?</span> Hit up <b>KAI</b> in the
+                corner to hire me and get your project deployed like an F1 car off the line.
             </p>
         </div>
     </section>

@@ -20,6 +20,8 @@ html,
 body {
     width: 100%;
     position: relative;
+    /* overflow-x: hidden breaks position: sticky. Use clip instead! */
+    overflow-x: clip;
 }
 
 body {
@@ -44,6 +46,39 @@ body {
     /* Tweak noise aggressively without heavy rendering cost */
     transform: translateZ(0);
     /* Force hardware compositing */
+}
+
+/* =========================================================================
+   SOUND TOGGLE (FIXED UI)
+   ========================================================================= */
+.sound-toggle {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    z-index: 8000;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    /* Minh Pham style: vertical left text, reading bottom-to-top */
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    transition: color 0.3s, opacity 0.3s, transform 0.3s;
+    outline: none;
+}
+
+.sound-toggle:hover {
+    color: var(--text);
+}
+
+.sound-toggle.muted {
+    text-decoration: line-through;
+    opacity: 0.5;
 }
 
 h1,
@@ -193,7 +228,12 @@ video {
     white-space: normal;
     text-shadow: 3px 3px 0px #000;
     width: 90%;
-    margin: 0 auto;
+    margin: auto;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    height: fit-content;
 }
 
 /* More uniform, less messy bounds while maintaining racing aesthetic */
@@ -481,6 +521,27 @@ video {
     max-width: 450px;
     margin-bottom: 2rem;
     transform: skewX(-5deg);
+
+    /* Stop long text from pushing headings through the ceiling */
+    max-height: 35vh;
+    overflow-y: auto;
+    pointer-events: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.project-desc::-webkit-scrollbar {
+    width: 4px;
+}
+
+.project-desc::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.project-desc::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
 }
 
 .tech-stack {
@@ -537,7 +598,7 @@ video {
    SECTION 5 — ABOUT
    ========================================================================= */
 .section--about {
-    height: 150vh;
+    height: 80vh;
     background-color: var(--bg);
     display: flex;
     align-items: center;
@@ -727,16 +788,19 @@ video {
 
     .project-desc {
         font-size: 0.75rem;
-        /* Shrink aggressively for mobile */
         line-height: 1.3;
         margin-bottom: 0.5rem;
         max-width: 95%;
-        /* Hardware truncation natively solves overflow */
-        display: -webkit-box;
-        -webkit-line-clamp: 5;
-        line-clamp: 5;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
+        max-height: 35vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        pointer-events: auto;
+        scrollbar-width: none;
+    }
+
+    .project-desc::-webkit-scrollbar {
+        display: none;
     }
 
     .tech-stack {
@@ -823,6 +887,26 @@ video {
         font-size: 0.95rem;
         max-width: 100%;
         margin-bottom: 1.5rem;
+        max-height: 20vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+        pointer-events: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+    }
+
+    .project-desc::-webkit-scrollbar {
+        width: 3px;
+    }
+
+    .project-desc::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .project-desc::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 4px;
     }
 
     .tech-stack li {
@@ -845,5 +929,15 @@ video {
         font-size: 1.8rem;
         width: 80%;
         text-align: center;
+    }
+}
+
+/* =========================================================================
+   DESKTOP DEFAULT ZOOM (10% SCALE DOWN VIA FONT)
+   ========================================================================= */
+@media (min-width: 1024px) {
+    html {
+        /* Prevents GSAP math breaking from 'zoom', scales safely using REMs */
+        font-size: 14px;
     }
 }
