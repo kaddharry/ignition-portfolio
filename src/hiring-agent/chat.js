@@ -7,7 +7,17 @@ let isPostBookingMode = false;
 let postBookingStage = null; // null | 'awaiting_reschedule_time'
 let savedMessages = []; // visual message log for session persistence
 
+// ─── Soft Booking State ───────────────────────────────────────────────────────
+let isSoftWindowMode = false;      // true while 30-min window is open
+let softRescheduleCount = 0;       // how many reschedules used (max 3)
+let softWindowTimer = null;        // setTimeout handle for 30-min timeout
+let softWindowBarEl = null;        // DOM element for countdown bar
+let softCountdownInterval = null;  // setInterval for countdown display
+let softSessionData = null;        // { clientName, clientContact, projectTitle, projectDesc, budgetTier, proposedSlotISO }
+
 const KAI_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
+const SOFT_WINDOW_MS = 30 * 60 * 1000;   // 30 minutes
+const MAX_RESCHEDULES = 3;
 
 // ─── Persistence (localStorage + 48h TTL) ────────────────────────────────────
 function saveMessages() {
@@ -233,7 +243,10 @@ export function initChat(widgetContainer) {
         return;
     }
 
-    sendInternalGreeting();
+    // Check for active soft window on refresh (before greeting)
+    checkSoftBookingStatus().then(hasSoft => {
+        if (!hasSoft) sendInternalGreeting();
+    });
 }
 
 function appendMessage(text, role) {
@@ -261,6 +274,13 @@ async function sendInternalGreeting() {
 }
 
 async function sendMessage(text) {
+    // ─── SOFT WINDOW STATE MACHINE ──────────────────────────────────────────────
+    if (isSoftWindowMode) {
+        appendMessage(text, 'user');
+        await handleSoftWindowMessage(text);
+        return;
+    }
+
     // ─── POST-BOOKING STATE MACHINE ───────────────────────────────────────────
     if (isPostBookingMode) {
         appendMessage(text, 'user');
@@ -519,18 +539,15 @@ async function fetchAgentResponse() {
             showCard = true;
         }
 
-        // Failsafe intercept raw tags in case server-side regex failed or LLM grouped it
-        let finalSummaryData = data.summaryData;
+        // Strip any SHOW_CONFIRMATION_CARD tags that leaked into displayText (should be handled server-side)
+        if (displayText.includes('SHOW_CONFIRMATION_CARD:')) {
+            displayText = displayText.replace(/SHOW_CONFIRMATION_CARD:\{[\s\S]*?\}\s*$/m, '').trim();
+        }
+
+        // Get confirmation data (processed server-side in agent-chat.js)
+        // Also strip legacy AGENT_SUMMARY_READY if it somehow appears in display text
         if (displayText.includes('AGENT_SUMMARY_READY:')) {
-            const jsonMatch = displayText.match(/AGENT_SUMMARY_READY:(\\{[\\s\\S]*?\\})/);
-            if (jsonMatch) {
-                try {
-                    finalSummaryData = JSON.parse(jsonMatch[1]);
-                    displayText = displayText.replace(jsonMatch[0], '').trim();
-                } catch(e) {
-                    console.error('[chat] Failed to parse summary JSON:', e);
-                }
-            }
+            displayText = displayText.replace(/AGENT_SUMMARY_READY:\{[\s\S]*?\}\s*$/m, '').trim();
         }
 
         // Loop failsafe: If the AI tried to run both the question and the confirmation synchronously,
@@ -565,93 +582,10 @@ async function fetchAgentResponse() {
             triggerContactCard();
         }
 
-        // TRIGGER: Final Summary → Book → Notify → Enter Post-Booking Mode
-        if (finalSummaryData) {
-            console.log('[chat] Summary data:', finalSummaryData);
-
-            (async () => {
-                try {
-                    let meetLink = '';
-                    let eventId = '';
-                    let startTime = finalSummaryData.proposedSlot || '';
-
-                    // Use ISO slot from AI if available, fallback to natural language
-                    const slotToBook = finalSummaryData.proposedSlotISO || finalSummaryData.proposedSlot;
-
-                    // Step 1: Book meeting
-                    const bookRes = await fetch('/api/book-meeting', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            slot: slotToBook,
-                            clientName: finalSummaryData.clientName,
-                            clientEmail: finalSummaryData.clientEmail || '',
-                            clientContact: finalSummaryData.clientContact,
-                            projectTitle: finalSummaryData.projectTitle,
-                            sessionId
-                        })
-                    });
-                    const bookData = await bookRes.json();
-                    console.log('[chat] Book result:', bookRes.status, bookData);
-
-                    // Handle failures — all return slots[] now
-                    if (!bookRes.ok) {
-                        const errCode = bookData.error;
-                        const returnedSlots = bookData.slots || [];
-
-                        if (errCode === 'slot_taken') {
-                            appendMessage('That slot is already taken! Here are the next available times — pick one:', 'bot');
-                        } else if (errCode === 'too_soon') {
-                            appendMessage('That time is too soon (need at least 1 hour notice). Here are available slots:', 'bot');
-                        } else if (errCode === 'outside_hours') {
-                            appendMessage('Hardik is only available 5:30–9:30 PM IST. Here are open slots:', 'bot');
-                        } else if (errCode === 'weekend') {
-                            appendMessage('Hardik is only available Monday to Friday. Try one of these weekdays:', 'bot');
-                        } else if (errCode === 'invalid_slot') {
-                            appendMessage("I couldn't understand that time, or the date doesn't exist. Pick one below:", 'bot');
-                        } else {
-                            appendMessage('Couldn’t lock in that time. Here are available slots to pick from:', 'bot');
-                        }
-
-                        if (returnedSlots.length > 0) {
-                            setTimeout(() => injectSlotPicker(returnedSlots, finalSummaryData), 600);
-                        } else {
-                            appendMessage(`No open slots right now, but Hardik will reach out on ${finalSummaryData.clientContact} to arrange a time. 🔥`, 'bot');
-                            await notifyOwner(finalSummaryData, '', startTime, data.budgetTier);
-                            markAsBooked(finalSummaryData.clientName, finalSummaryData.projectTitle, '', '', finalSummaryData.clientContact);
-                            enterPostBookingMode(finalSummaryData.clientName, finalSummaryData.clientContact);
-                        }
-                        return;
-                    }
-
-                    // Success!
-                    meetLink = bookData.meetLink || '';
-                    eventId = bookData.eventId || '';
-                    startTime = bookData.startTime || startTime;
-
-                    if (meetLink) {
-                        appendMessage(`🔗 Your Google Meet link: <a href="${meetLink}" target="_blank">${meetLink}</a>`, 'bot');
-                        // 48h warning bar
-                        const warnEl = document.createElement('div');
-                        warnEl.className = 'kai-ttl-warning';
-                        warnEl.textContent = '⚠ This chat will be available for 48 hours only';
-                        appendVNodes(warnEl);
-                    } else {
-                        appendMessage(`Your request is in! Hardik will send the Meet link to ${finalSummaryData.clientContact}. 🔥`, 'bot');
-                    }
-
-                    // Step 2: Notify owner
-                    await notifyOwner(finalSummaryData, meetLink, startTime, data.budgetTier);
-
-                    // Step 3: Mark as booked
-                    markAsBooked(finalSummaryData.clientName, finalSummaryData.projectTitle, meetLink, eventId, finalSummaryData.clientContact);
-                    enterPostBookingMode(finalSummaryData.clientName, finalSummaryData.clientContact);
-
-                } catch (err) {
-                    console.error('[chat] Pipeline error:', err);
-                    appendMessage('Something went wrong on our end. Hardik has been notified.', 'bot');
-                }
-            })();
+        // TRIGGER: Confirmation card from AI
+        if (data.confirmationData) {
+            console.log('[chat] Confirmation data received:', data.confirmationData);
+            setTimeout(() => triggerConfirmationCard(data.confirmationData, data.budgetTier), 400);
         }
 
     } catch (e) {
@@ -692,7 +626,435 @@ function extractClientName() {
   return 'There';
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SOFT BOOKING SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Detect time expression in a string ───────────────────────────────────────
+function containsTimeExpression(text) {
+    return /\b(monday|tuesday|wednesday|thursday|friday|tomorrow|today|next week)\b/i.test(text) ||
+           /\b\d{1,2}(:\d{2})?\s*(am|pm)\b/i.test(text) ||
+           /\b(half past|quarter past|quarter to)\b/i.test(text) ||
+           /\b\d{1,2}\s*:\s*\d{2}\b/.test(text) ||
+           /\b\d{1,2}\s*(pm|am)\b/i.test(text);
+}
+
+// ─── Render the 3-button confirmation card ────────────────────────────────────
+function triggerConfirmationCard(cd, budgetTier) {
+    // Only one card at a time
+    document.getElementById('kai-confirm-card')?.remove();
+
+    const slot = cd.proposedSlotISO || cd.proposedSlot;
+    let istLabel = cd.proposedSlot || 'Chosen time';
+    try {
+        istLabel = new Date(cd.proposedSlotISO).toLocaleString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric',
+            hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata'
+        }) + ' IST';
+    } catch(e) {}
+
+    const card = document.createElement('div');
+    card.className = 'kai-confirm-card';
+    card.id = 'kai-confirm-card';
+    card.innerHTML = `
+        <div class="kai-confirm-title">MEETING REQUEST</div>
+        <div class="kai-confirm-detail">CLIENT  <span>${cd.clientName || '—'}</span></div>
+        <div class="kai-confirm-detail">TIME    <span>${istLabel}</span></div>
+        <div class="kai-confirm-detail">PROJECT <span>${cd.projectTitle || '—'}</span></div>
+        <div class="kai-confirm-subtitle">You have 3 reschedules available within 30 minutes of confirming.</div>
+        <div class="kai-confirm-btns">
+            <button class="kai-confirm-btn fix-now"     id="kai-btn-fixnow">FIX IT NOW — I'M SURE</button>
+            <button class="kai-confirm-btn keep-window" id="kai-btn-keepwindow">KEEP WINDOW OPEN</button>
+            <button class="kai-confirm-btn cancel-booking" id="kai-btn-softcancel">CANCEL</button>
+        </div>
+    `;
+    appendVNodes(card);
+
+    document.getElementById('kai-btn-fixnow').addEventListener('click', () => onFixNow(cd, budgetTier, slot));
+    document.getElementById('kai-btn-keepwindow').addEventListener('click', () => onKeepWindow(cd, budgetTier, slot));
+    document.getElementById('kai-btn-softcancel').addEventListener('click', () => onSoftCancel(cd));
+}
+
+// ─── Button 1: FIX IT NOW ─────────────────────────────────────────────────────
+async function onFixNow(cd, budgetTier, slotISO) {
+    document.getElementById('kai-confirm-card')?.remove();
+    appendMessage('⏳ Booking your slot now...', 'bot');
+
+    try {
+        const bookRes = await fetch('/api/book-meeting', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                slot: slotISO,
+                clientName: cd.clientName,
+                clientEmail: cd.clientEmail || '',
+                clientContact: cd.clientContact,
+                projectTitle: cd.projectTitle,
+                sessionId
+            })
+        });
+        const bookData = await bookRes.json();
+
+        if (!bookRes.ok) {
+            const returnedSlots = bookData.slots || [];
+            appendMessage(bookData.message || "Couldn't lock that slot. Pick another:", 'bot');
+            if (returnedSlots.length > 0) setTimeout(() => injectSlotPicker(returnedSlots, cd), 600);
+            return;
+        }
+
+        const { meetLink, eventId, startTime } = bookData;
+
+        if (meetLink) {
+            appendMessage(`🔗 Your Google Meet link: <a href="${meetLink}" target="_blank">${meetLink}</a>`, 'bot');
+            const warnEl = document.createElement('div');
+            warnEl.className = 'kai-ttl-warning';
+            warnEl.textContent = '⚠ This chat will be available for 48 hours only';
+            appendVNodes(warnEl);
+        }
+
+        // Notify Hardik — MESSAGE 1 (confirmed instantly)
+        await notifyOwner({ ...cd, eventId, label: '✅ CONFIRMED INSTANTLY' }, meetLink, startTime || slotISO, budgetTier);
+
+        markAsBooked(cd.clientName, cd.projectTitle, meetLink, eventId, cd.clientContact);
+        enterPostBookingMode(cd.clientName, cd.clientContact);
+
+    } catch(e) {
+        console.error('[onFixNow] Error:', e);
+        appendMessage('Something went wrong. Please try again.', 'bot');
+    }
+}
+
+// ─── Button 2: KEEP WINDOW OPEN ───────────────────────────────────────────────
+async function onKeepWindow(cd, budgetTier, slotISO) {
+    document.getElementById('kai-confirm-card')?.remove();
+    appendMessage('⏳ Holding your slot...', 'bot');
+
+    // Save soft booking
+    try {
+        const saveRes = await fetch('/api/soft-booking?action=save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sessionId,
+                fingerprint: generateFingerprint(),
+                clientName: cd.clientName,
+                clientContact: cd.clientContact,
+                projectTitle: cd.projectTitle,
+                projectDesc: cd.projectDesc || '',
+                budgetTier: budgetTier || cd.budgetTier || 'Unknown',
+                chosenTime: slotISO
+            })
+        });
+        const saveData = await saveRes.json();
+
+        if (!saveRes.ok) {
+            const slots = saveData.slots || [];
+            appendMessage(saveData.message || 'That slot just got taken. Pick a new time:', 'bot');
+            if (slots.length > 0) setTimeout(() => injectSlotPicker(slots, cd), 600);
+            return;
+        }
+    } catch(e) {
+        console.error('[onKeepWindow] Save failed:', e);
+        appendMessage('Something went wrong holding the slot. Try again.', 'bot');
+        return;
+    }
+
+    // Store state
+    isSoftWindowMode    = true;
+    softRescheduleCount = 0;
+    softSessionData     = { ...cd, proposedSlotISO: slotISO, budgetTier };
+    inputField.placeholder = 'Type a new time to reschedule...';
+
+    const now = Date.now();
+    localStorage.setItem('kai_soft_' + generateFingerprint(), JSON.stringify({
+        sessionId, softBookedAt: now, slotISO,
+        clientName: cd.clientName, clientContact: cd.clientContact,
+        projectTitle: cd.projectTitle, projectDesc: cd.projectDesc || '',
+        budgetTier: budgetTier || 'Unknown'
+    }));
+
+    // Show confirmation message
+    appendMessage(
+        `🟡 Your slot is held for 30 minutes.\n` +
+        `You can reschedule up to 3 times in this chat.\n` +
+        `After 30 minutes (or when you use all reschedules), your meeting is confirmed automatically.`,
+        'bot'
+    );
+
+    // Start countdown
+    startSoftCountdown(now + SOFT_WINDOW_MS);
+
+    // 30-min auto-finalize timer
+    softWindowTimer = setTimeout(() => finalizeSoftBooking('timeout'), SOFT_WINDOW_MS);
+
+    // Notify Hardik — MESSAGE 1 (soft booking)
+    await notifyOwnerSoft(cd, slotISO, budgetTier, 3);
+}
+
+// ─── Button 3: CANCEL (before finalization) ───────────────────────────────────
+async function onSoftCancel(cd) {
+    document.getElementById('kai-confirm-card')?.remove();
+
+    // Remove from soft-bookings.json
+    try {
+        await fetch('/api/soft-booking?action=cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId })
+        });
+    } catch(e) {}
+
+    // Notify Hardik
+    await notifyOwnerSoftCancel(cd?.clientName || 'Client', cd?.clientContact || '');
+
+    clearSoftState();
+    appendMessage('Cancelled! No meeting was created. Say hi to start over.', 'bot');
+    inputField.placeholder = 'Message...';
+}
+
+// ─── Handle incoming messages during soft window ──────────────────────────────
+async function handleSoftWindowMessage(text) {
+    const lower = text.toLowerCase().trim();
+
+    // Cancel keywords
+    const wantsCancel = /\bcancel\b/.test(lower) || lower.includes('stop') || lower.includes('abort');
+    if (wantsCancel) {
+        await onSoftCancel(softSessionData);
+        return;
+    }
+
+    // CRITICAL RULE: only count as a reschedule attempt if text contains a time expression
+    if (!containsTimeExpression(text)) {
+        appendMessage(
+            `I can only update the meeting time or cancel it right now.\nType a new time (e.g. "Monday 7 PM") or say "cancel".`,
+            'bot'
+        );
+        return;
+    }
+
+    // Validate the new time
+    appendMessage('Checking that slot...', 'bot');
+    try {
+        const parseRes = await fetch('/api/parse-time', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        const parseData = await parseRes.json();
+
+        if (!parseData.valid) {
+            // Do NOT reduce count — validation failed
+            appendMessage(parseData.message || "That time is outside Hardik's hours. Try Mon–Fri, 5:30–9:30 PM IST.", 'bot');
+            return;
+        }
+
+        // Update soft booking
+        const updateRes = await fetch('/api/soft-booking?action=update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, newTime: parseData.iso })
+        });
+        const updateData = await updateRes.json();
+
+        if (!updateRes.ok) {
+            // Clash or validation error — do NOT reduce count
+            appendMessage(updateData.message || 'That slot is taken. Try another time.', 'bot');
+            return;
+        }
+
+        // Success — count goes up
+        softRescheduleCount = updateData.rescheduleCount;
+        softSessionData.proposedSlotISO = parseData.iso;
+
+        const remaining = MAX_RESCHEDULES - softRescheduleCount;
+        appendMessage(
+            `✅ Updated to <b>${parseData.istLabel}</b>.\n${remaining} reschedule${remaining === 1 ? '' : 's'} left.`,
+            'bot'
+        );
+
+        // Auto-finalize at MAX_RESCHEDULES
+        if (softRescheduleCount >= MAX_RESCHEDULES) {
+            clearTimeout(softWindowTimer);
+            appendMessage('You\'ve used all reschedules. Finalising your booking now!', 'bot');
+            await finalizeSoftBooking('reschedule_limit');
+        }
+
+    } catch(e) {
+        console.error('[handleSoftWindowMessage] Error:', e);
+        appendMessage('Something went wrong checking that time. Try again.', 'bot');
+    }
+}
+
+// ─── Finalize soft booking (timer or reschedule limit) ────────────────────────
+async function finalizeSoftBooking(reason) {
+    clearSoftCountdown();
+    isSoftWindowMode = false;
+
+    appendMessage('⏳ Finalising your booking...', 'bot');
+
+    try {
+        const res = await fetch('/api/finalize-booking', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId })
+        });
+        const data = await res.json();
+
+        if (data.status === 'clash') {
+            // Slot was taken at finalize time
+            appendMessage("⚠️ That slot just got taken by someone else! Please pick a new time.", 'bot');
+            isSoftWindowMode = true; // let them reschedule once more
+            return;
+        }
+
+        if (data.status === 'confirmed' && data.meetLink) {
+            appendMessage(`🔗 Your Google Meet link: <a href="${data.meetLink}" target="_blank">${data.meetLink}</a>`, 'bot');
+            const warnEl = document.createElement('div');
+            warnEl.className = 'kai-ttl-warning';
+            warnEl.textContent = '⚠ This chat will be available for 48 hours only';
+            appendVNodes(warnEl);
+
+            const sd = softSessionData || {};
+            markAsBooked(sd.clientName, sd.projectTitle, data.meetLink, data.eventId, sd.clientContact);
+            clearSoftState();
+            enterPostBookingMode(sd.clientName, sd.clientContact);
+        }
+
+    } catch(e) {
+        console.error('[finalizeSoftBooking] Error:', e);
+        appendMessage('Something went wrong finalising. Hardik has been notified.', 'bot');
+    }
+}
+
+// ─── Countdown bar ────────────────────────────────────────────────────────────
+function startSoftCountdown(expiresAt) {
+    // Create the bar
+    softWindowBarEl = document.createElement('div');
+    softWindowBarEl.className = 'kai-soft-window-bar';
+    softWindowBarEl.id = 'kai-soft-bar';
+    softWindowBarEl.innerHTML = `<span>SLOT HELD — EXPIRES IN</span><span class="kai-countdown" id="kai-soft-countdown">30:00</span>`;
+    appendVNodes(softWindowBarEl);
+
+    function tick() {
+        const remaining = expiresAt - Date.now();
+        if (remaining <= 0) {
+            clearSoftCountdown();
+            return;
+        }
+        const m = Math.floor(remaining / 60000);
+        const s = Math.floor((remaining % 60000) / 1000);
+        const el = document.getElementById('kai-soft-countdown');
+        if (el) el.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+    tick();
+    softCountdownInterval = setInterval(tick, 1000);
+}
+
+function clearSoftCountdown() {
+    if (softCountdownInterval) { clearInterval(softCountdownInterval); softCountdownInterval = null; }
+    document.getElementById('kai-soft-bar')?.remove();
+    softWindowBarEl = null;
+}
+
+// ─── Full in-memory soft state reset ─────────────────────────────────────────
+function clearSoftState() {
+    if (softWindowTimer) { clearTimeout(softWindowTimer); softWindowTimer = null; }
+    clearSoftCountdown();
+    isSoftWindowMode    = false;
+    softRescheduleCount = 0;
+    softSessionData     = null;
+    localStorage.removeItem('kai_soft_' + generateFingerprint());
+}
+
+// ─── Notify Hardik: soft booking held ─────────────────────────────────────────
+async function notifyOwnerSoft(cd, slotISO, budgetTier, remaining) {
+    let istLabel = slotISO;
+    try { istLabel = new Date(slotISO).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata' }) + ' IST'; } catch(e) {}
+    try {
+        await fetch('/api/notify-owner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientName: cd.clientName,
+                clientContact: cd.clientContact,
+                projectTitle: '🟡 SOFT BOOKING — 30 MIN WINDOW OPEN',
+                projectDesc: `${cd.projectDesc || cd.projectTitle}\n\nReschedules remaining: ${remaining}`,
+                budgetTier: budgetTier || 'Unknown',
+                meetLink: '',
+                meetingDateTime: istLabel,
+                fingerprint: generateFingerprint(),
+                eventId: ''
+            })
+        });
+    } catch(e) { console.error('[notifyOwnerSoft] Failed:', e); }
+}
+
+// ─── Notify Hardik: soft booking cancelled ────────────────────────────────────
+async function notifyOwnerSoftCancel(clientName, clientContact) {
+    try {
+        await fetch('/api/notify-owner', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientName,
+                clientContact,
+                projectTitle: '❌ SOFT BOOKING CANCELLED',
+                projectDesc: `${clientName} cancelled before confirming.`,
+                budgetTier: 'Unknown',
+                meetLink: '',
+                fingerprint: generateFingerprint(),
+                eventId: ''
+            })
+        });
+    } catch(e) {}
+}
+
+// ─── Restore soft window on page refresh ──────────────────────────────────────
+async function checkSoftBookingStatus() {
+    const fp = generateFingerprint();
+    const raw = localStorage.getItem('kai_soft_' + fp);
+    if (!raw) return false;
+
+    let stored;
+    try { stored = JSON.parse(raw); } catch { return false; }
+
+    const expiresAt = stored.softBookedAt + SOFT_WINDOW_MS;
+    if (Date.now() > expiresAt) {
+        // Window expired — finalize
+        localStorage.removeItem('kai_soft_' + fp);
+        // Fire finalize in background
+        fetch('/api/finalize-booking', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: stored.sessionId })
+        }).catch(() => {});
+        return false;
+    }
+
+    // Restore soft window state
+    const serverRes = await fetch('/api/soft-booking?action=get', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: stored.sessionId })
+    }).catch(() => null);
+    if (!serverRes) return false;
+    const serverData = await serverRes.json().catch(() => ({}));
+    if (serverData.status !== 'soft') return false;
+
+    // Reassign session (critical for finalize to work)
+    sessionId = stored.sessionId;
+    isSoftWindowMode    = true;
+    softRescheduleCount = serverData.rescheduleCount || 0;
+    softSessionData     = { ...serverData };
+
+    appendMessage(`Welcome back! Your slot is still held for ${Math.ceil((expiresAt - Date.now()) / 60000)} more minute(s). You have ${MAX_RESCHEDULES - softRescheduleCount} reschedule(s) left.`, 'bot');
+    inputField.placeholder = 'Type a new time to reschedule...';
+    startSoftCountdown(expiresAt);
+    softWindowTimer = setTimeout(() => finalizeSoftBooking('timeout'), expiresAt - Date.now());
+
+    return true;
+}
+
 function triggerContactCard() {
+
     const cardEl = document.createElement('div');
     cardEl.className = 'kai-contact-card';
     cardEl.id = 'kai-contact-card';

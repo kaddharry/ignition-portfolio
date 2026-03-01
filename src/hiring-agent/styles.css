@@ -585,3 +585,112 @@ body.kai-chat-open #portrait-blocker {
         opacity: 0.45;
     }
 }
+
+/* ── Confirmation Card (3-button soft booking) ────────────────────────────── */
+.kai-confirm-card {
+    background: #111;
+    border: 1px solid rgba(255, 24, 1, 0.3);
+    border-left: 3px solid #ff1801;
+    border-radius: 4px;
+    padding: 16px;
+    margin: 4px 0;
+    width: 100%;
+    animation: cardSlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.kai-confirm-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 5px;
+    color: #ff1801;
+    margin-bottom: 12px;
+}
+
+.kai-confirm-detail {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: #888;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.kai-confirm-detail span {
+    color: #e8e8e8;
+}
+
+.kai-confirm-subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: #555;
+    letter-spacing: 1px;
+    margin: 10px 0 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 10px;
+}
+
+.kai-confirm-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.kai-confirm-btn {
+    width: 100%;
+    border: none;
+    border-radius: 3px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    letter-spacing: 3px;
+    padding: 11px 14px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    text-align: center;
+}
+
+.kai-confirm-btn:hover {
+    opacity: 0.85;
+}
+
+.kai-confirm-btn:active {
+    transform: scale(0.98);
+}
+
+.kai-confirm-btn.fix-now {
+    background: #22c55e;
+    color: #000;
+}
+
+.kai-confirm-btn.keep-window {
+    background: #ff1801;
+    color: #fff;
+}
+
+.kai-confirm-btn.cancel-booking {
+    background: #1e1e1e;
+    color: #888;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── Soft-window status bar ────────────────────────────────────────────────── */
+.kai-soft-window-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin: 6px 0;
+    padding: 8px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+    border-left: 2px solid #f59e0b;
+    border-radius: 0 3px 3px 0;
+}
+
+.kai-soft-window-bar .kai-countdown {
+    font-size: 12px;
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 2px;
+    color: #f59e0b;
+}

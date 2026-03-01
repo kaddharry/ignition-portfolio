@@ -11,31 +11,43 @@ module.exports = async function handler(req, res) {
         
         let reply = await callAI(messages, systemPrompt);
         
-        let summaryData = null;
+        let confirmationData = null; // replaces old summaryData — triggers the confirmation card
         let budgetTier = null;
-        
-        // Extract internal BUDGET_SIGNAL without exposing to client
+
+        // Extract BUDGET_SIGNAL without exposing to client
         const budgetMatch = reply.match(/BUDGET_SIGNAL:\[(.*?)\]/);
         if (budgetMatch) {
             budgetTier = budgetMatch[1];
             reply = reply.replace(budgetMatch[0], '').trim();
         }
-        
-        // Extract internal AGENT_SUMMARY_READY JSON block
-        const summaryMatch = reply.match(/AGENT_SUMMARY_READY:({.*})/s);
-        if (summaryMatch) {
+
+        // Extract SHOW_CONFIRMATION_CARD JSON block (new flow)
+        const confirmMatch = reply.match(/SHOW_CONFIRMATION_CARD:({[\s\S]*?})\s*$/m);
+        if (confirmMatch) {
             try {
-                summaryData = JSON.parse(summaryMatch[1]);
-                reply = reply.replace(summaryMatch[0], '').trim();
-            } catch (e) { console.error("Summary Parse Error:", e); }
+                confirmationData = JSON.parse(confirmMatch[1]);
+                reply = reply.replace(confirmMatch[0], '').trim();
+            } catch (e) {
+                console.error('[agent-chat] SHOW_CONFIRMATION_CARD parse error:', e.message);
+            }
         }
-        
+
+        // Legacy: also handle AGENT_SUMMARY_READY just in case LLM uses old tag
+        if (!confirmationData) {
+            const legacyMatch = reply.match(/AGENT_SUMMARY_READY:({[\s\S]*?})\s*$/m);
+            if (legacyMatch) {
+                try {
+                    confirmationData = JSON.parse(legacyMatch[1]);
+                    reply = reply.replace(legacyMatch[0], '').trim();
+                } catch (e) { console.error('[agent-chat] Legacy summary parse error:', e.message); }
+            }
+        }
+
         reply = reply.trim();
-        res.status(200).json({ reply, summaryData, budgetTier });
+        res.status(200).json({ reply, confirmationData, budgetTier });
         
     } catch (e) {
-        console.error("Agent Error:", e);
+        console.error('[agent-chat] Error:', e);
         res.status(500).json({ error: e.message });
     }
 };
-
