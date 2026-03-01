@@ -604,7 +604,11 @@ async function fetchAgentResponse() {
                         } else if (errCode === 'too_soon') {
                             appendMessage('That time is too soon (need at least 1 hour notice). Here are available slots:', 'bot');
                         } else if (errCode === 'outside_hours') {
-                            appendMessage('Hardik is only available Mon–Fri, 5:30–9:30 PM IST. Here are open slots:', 'bot');
+                            appendMessage('Hardik is only available 5:30–9:30 PM IST. Here are open slots:', 'bot');
+                        } else if (errCode === 'weekend') {
+                            appendMessage('Hardik is only available Monday to Friday. Try one of these weekdays:', 'bot');
+                        } else if (errCode === 'invalid_slot') {
+                            appendMessage("I couldn't understand that time, or the date doesn't exist. Pick one below:", 'bot');
                         } else {
                             appendMessage('Couldn’t lock in that time. Here are available slots to pick from:', 'bot');
                         }
