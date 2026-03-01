@@ -773,20 +773,23 @@ async function onKeepWindow(cd, budgetTier, slotISO) {
     inputField.placeholder = 'Type a new time to reschedule...';
 
     const now = Date.now();
-    localStorage.setItem('kai_soft_' + generateFingerprint(), JSON.stringify({
+    const fp = generateFingerprint();
+    localStorage.setItem('kai_soft_' + fp, JSON.stringify({
         sessionId, softBookedAt: now, slotISO,
         clientName: cd.clientName, clientContact: cd.clientContact,
         projectTitle: cd.projectTitle, projectDesc: cd.projectDesc || '',
-        budgetTier: budgetTier || 'Unknown'
+        budgetTier: budgetTier || 'Unknown',
+        rescheduleCount: 0
     }));
 
     // Show confirmation message
     appendMessage(
         `🟡 Your slot is held for 30 minutes.\n` +
-        `You can reschedule up to 3 times in this chat.\n` +
-        `After 30 minutes (or when you use all reschedules), your meeting is confirmed automatically.`,
+        `You can reschedule up to 3 times or say "confirm" to lock it in now.\n` +
+        `After 30 minutes your meeting is confirmed automatically.`,
         'bot'
     );
+    inputField.placeholder = 'Say "confirm" or type a new time...';
 
     // Start countdown
     startSoftCountdown(now + SOFT_WINDOW_MS);
@@ -824,12 +827,28 @@ async function handleSoftWindowMessage(text) {
     const lower = text.toLowerCase().trim();
 
     // Cancel keywords
-    const wantsCancel = /\bcancel\b/.test(lower) || lower.includes('stop') || lower.includes('abort');
+    const wantsCancel = /\bcancel\b/i.test(lower) || lower.includes('stop') || lower.includes('abort');
     if (wantsCancel) {
         await onSoftCancel(softSessionData);
         return;
     }
 
+    // CONFIRM keywords — client says "confirm it", "book it", "lock it", "done", etc.
+    const wantsConfirm =
+        /\bconfirm\b/i.test(lower) ||
+        /\bbook it\b/i.test(lower) ||
+        /\block it\b/i.test(lower) ||
+        /\bfinalize\b/i.test(lower) ||
+        /\bfinalise\b/i.test(lower) ||
+        lower === 'done' ||
+        lower === 'yes' ||
+        lower === 'go ahead';
+    if (wantsConfirm) {
+        clearTimeout(softWindowTimer);
+        appendMessage('Confirming your booking now! 🔥', 'bot');
+        await finalizeSoftBooking('client_confirmed');
+        return;
+    }
     // CRITICAL RULE: only count as a reschedule attempt if text contains a time expression
     if (!containsTimeExpression(text)) {
         appendMessage(
@@ -855,11 +874,11 @@ async function handleSoftWindowMessage(text) {
             return;
         }
 
-        // Update soft booking
+        // Update soft booking — pass currentCount so server returns correct remaining
         const updateRes = await fetch('/api/soft-booking?action=update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId, newTime: parseData.iso })
+            body: JSON.stringify({ newTime: parseData.iso, currentCount: softRescheduleCount })
         });
         const updateData = await updateRes.json();
 
@@ -869,13 +888,25 @@ async function handleSoftWindowMessage(text) {
             return;
         }
 
-        // Success — count goes up
+        // Success — count goes up, persist to localStorage for refresh recovery
         softRescheduleCount = updateData.rescheduleCount;
         softSessionData.proposedSlotISO = parseData.iso;
 
+        // Update localStorage so refresh restores the latest slot + count
+        const fp = generateFingerprint();
+        const raw = localStorage.getItem('kai_soft_' + fp);
+        if (raw) {
+            try {
+                const stored = JSON.parse(raw);
+                stored.slotISO = parseData.iso;
+                stored.rescheduleCount = softRescheduleCount;
+                localStorage.setItem('kai_soft_' + fp, JSON.stringify(stored));
+            } catch(e) {}
+        }
+
         const remaining = MAX_RESCHEDULES - softRescheduleCount;
         appendMessage(
-            `✅ Updated to <b>${parseData.istLabel}</b>.\n${remaining} reschedule${remaining === 1 ? '' : 's'} left.`,
+            `✅ Updated to <b>${parseData.istLabel}</b>.\n${remaining} reschedule${remaining === 1 ? '' : 's'} left. Say "confirm" to lock it in!`,
             'bot'
         );
 
@@ -892,18 +923,27 @@ async function handleSoftWindowMessage(text) {
     }
 }
 
-// ─── Finalize soft booking (timer or reschedule limit) ────────────────────────
+// ─── Finalize soft booking (timer, reschedule limit, or client confirmed) ───────
 async function finalizeSoftBooking(reason) {
     clearSoftCountdown();
     isSoftWindowMode = false;
 
     appendMessage('⏳ Finalising your booking...', 'bot');
 
+    const sd = softSessionData || {};
+
     try {
         const res = await fetch('/api/finalize-booking', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId })
+            body: JSON.stringify({
+                chosenTime:   sd.proposedSlotISO || sd.chosenTime || '',
+                clientName:   sd.clientName    || '',
+                clientContact: sd.clientContact || '',
+                projectTitle: sd.projectTitle  || 'Discovery Call',
+                projectDesc:  sd.projectDesc   || '',
+                budgetTier:   sd.budgetTier    || 'Unknown'
+            })
         });
         const data = await res.json();
 
@@ -921,7 +961,6 @@ async function finalizeSoftBooking(reason) {
             warnEl.textContent = '⚠ This chat will be available for 48 hours only';
             appendVNodes(warnEl);
 
-            const sd = softSessionData || {};
             markAsBooked(sd.clientName, sd.projectTitle, data.meetLink, data.eventId, sd.clientContact);
             clearSoftState();
             enterPostBookingMode(sd.clientName, sd.clientContact);
@@ -1016,7 +1055,7 @@ async function notifyOwnerSoftCancel(clientName, clientContact) {
     } catch(e) {}
 }
 
-// ─── Restore soft window on page refresh ──────────────────────────────────────
+// ─── Restore soft window on page refresh (localStorage only — server is stateless) ─
 async function checkSoftBookingStatus() {
     const fp = generateFingerprint();
     const raw = localStorage.getItem('kai_soft_' + fp);
@@ -1026,34 +1065,46 @@ async function checkSoftBookingStatus() {
     try { stored = JSON.parse(raw); } catch { return false; }
 
     const expiresAt = stored.softBookedAt + SOFT_WINDOW_MS;
+
     if (Date.now() > expiresAt) {
-        // Window expired — finalize
+        // Window expired while page was closed — finalize now
         localStorage.removeItem('kai_soft_' + fp);
-        // Fire finalize in background
-        fetch('/api/finalize-booking', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: stored.sessionId })
-        }).catch(() => {});
-        return false;
+        // Restore softSessionData from localStorage so finalizeSoftBooking has data
+        isSoftWindowMode = false;
+        softSessionData = {
+            clientName:    stored.clientName    || '',
+            clientContact: stored.clientContact || '',
+            projectTitle:  stored.projectTitle  || 'Discovery Call',
+            projectDesc:   stored.projectDesc   || '',
+            budgetTier:    stored.budgetTier    || 'Unknown',
+            proposedSlotISO: stored.slotISO     || ''
+        };
+        appendMessage('Your 30-minute window expired while you were away. Finalising your booking now!', 'bot');
+        await finalizeSoftBooking('expired_on_return');
+        return true;
     }
 
-    // Restore soft window state
-    const serverRes = await fetch('/api/soft-booking?action=get', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: stored.sessionId })
-    }).catch(() => null);
-    if (!serverRes) return false;
-    const serverData = await serverRes.json().catch(() => ({}));
-    if (serverData.status !== 'soft') return false;
-
-    // Reassign session (critical for finalize to work)
-    sessionId = stored.sessionId;
+    // Window still open — restore state entirely from localStorage (no server call)
+    sessionId           = stored.sessionId || sessionId;
     isSoftWindowMode    = true;
-    softRescheduleCount = serverData.rescheduleCount || 0;
-    softSessionData     = { ...serverData };
+    softRescheduleCount = stored.rescheduleCount || 0;
+    softSessionData     = {
+        clientName:    stored.clientName    || '',
+        clientContact: stored.clientContact || '',
+        projectTitle:  stored.projectTitle  || 'Discovery Call',
+        projectDesc:   stored.projectDesc   || '',
+        budgetTier:    stored.budgetTier    || 'Unknown',
+        proposedSlotISO: stored.slotISO     || ''
+    };
 
-    appendMessage(`Welcome back! Your slot is still held for ${Math.ceil((expiresAt - Date.now()) / 60000)} more minute(s). You have ${MAX_RESCHEDULES - softRescheduleCount} reschedule(s) left.`, 'bot');
-    inputField.placeholder = 'Type a new time to reschedule...';
+    const minsLeft = Math.ceil((expiresAt - Date.now()) / 60000);
+    appendMessage(
+        `Welcome back! Your slot is still held for ${minsLeft} more minute(s). ` +
+        `You have ${MAX_RESCHEDULES - softRescheduleCount} reschedule(s) left. ` +
+        `Say "confirm" to lock it in now, or type a new time to reschedule.`,
+        'bot'
+    );
+    inputField.placeholder = 'Say "confirm" or type a new time...';
     startSoftCountdown(expiresAt);
     softWindowTimer = setTimeout(() => finalizeSoftBooking('timeout'), expiresAt - Date.now());
 

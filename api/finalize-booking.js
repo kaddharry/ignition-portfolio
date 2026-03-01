@@ -1,37 +1,42 @@
 require('dotenv').config({ path: '.env.local' });
 const { createMeetingEvent, isSlotFree } = require('../lib/googleCalendar');
-const { readSoftBookings, writeSoftBookings } = require('./soft-booking');
 const fetch = (...args) => import('node-fetch').then(({ default: f }) => f(...args));
 
 // POST /api/finalize-booking
-// Body: { sessionId }
-// Called at 30-min timeout OR when rescheduleCount reaches 3
+// Body: { chosenTime, clientName, clientContact, projectTitle, projectDesc, budgetTier }
+// Accepts full booking data from client localStorage — no server-side file read needed.
 module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-    const { sessionId } = req.body || {};
-    if (!sessionId) return res.status(400).json({ error: 'Missing sessionId' });
+    const {
+        chosenTime,
+        clientName,
+        clientContact,
+        projectTitle,
+        projectDesc,
+        budgetTier
+    } = req.body || {};
 
-    const soft = readSoftBookings();
-    const entry = soft[sessionId];
-
-    if (!entry) return res.status(400).json({ error: 'Soft booking not found', status: 'not_found' });
-    if (entry.status !== 'soft') return res.status(400).json({ error: 'Already processed', status: entry.status });
+    if (!chosenTime) return res.status(400).json({ error: 'Missing chosenTime' });
 
     const durationMins = parseInt(process.env.MEETING_DURATION_MINS || 30);
-    const eventStart = new Date(entry.chosenTime);
+    const eventStart = new Date(chosenTime);
     const eventEnd   = new Date(eventStart.getTime() + durationMins * 60 * 1000);
 
-    // Final clash check
+    if (isNaN(eventStart.getTime())) {
+        return res.status(400).json({ error: 'invalid_time', status: 'error' });
+    }
+
+    // Final clash check before creating the event
     const free = await isSlotFree(eventStart, eventEnd);
     if (!free) {
-        soft[sessionId].status = 'clash_on_finalize';
-        writeSoftBookings(soft);
-
-        // Notify Hardik
-        await sendTelegram(`⚠️ <b>CLASH ON FINALIZE</b>\n${entry.clientName}'s soft booking couldn't be confirmed — slot was taken by another event.\nContact: ${entry.clientContact}`);
-
-        return res.status(409).json({ status: 'clash', message: 'That slot just got taken! Open the chat to pick a new time.' });
+        await sendTelegram(
+            `⚠️ <b>CLASH ON FINALIZE</b>\n${clientName || 'Client'}'s soft booking couldn't be confirmed — slot was taken.\nContact: ${clientContact || 'N/A'}`
+        );
+        return res.status(409).json({
+            status: 'clash',
+            message: "That slot just got taken! Open the chat to pick a new time."
+        });
     }
 
     // Create calendar event
@@ -40,9 +45,9 @@ module.exports = async (req, res) => {
         const result = await createMeetingEvent(
             eventStart.toISOString(),
             eventEnd.toISOString(),
-            entry.clientName || 'Client',
+            clientName || 'Client',
             '',
-            entry.projectTitle || 'Discovery Call'
+            projectTitle || 'Discovery Call'
         );
         meetLink = result.meetLink || '';
         eventId  = result.eventId  || '';
@@ -51,29 +56,19 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: e.message });
     }
 
-    // Update soft-bookings.json
-    soft[sessionId] = {
-        ...entry,
-        status: 'confirmed',
-        eventId,
-        meetLink,
-        confirmedAt: new Date().toISOString()
-    };
-    writeSoftBookings(soft);
-
-    // Format IST label
+    // Format IST label for Telegram
     const istLabel = eventStart.toLocaleString('en-US', {
         weekday: 'short', month: 'short', day: 'numeric',
         hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata'
-    });
+    }) + ' IST';
 
-    // Notify Hardik — MESSAGE 2
+    // Notify Hardik — MESSAGE 2 (soft booking confirmed)
     await sendTelegram(
         `✅ <b>SOFT BOOKING CONFIRMED</b>\n\n` +
-        `👤 <b>${entry.clientName}</b>\n` +
-        `📱 ${entry.clientContact}\n\n` +
-        `📋 ${entry.projectTitle}\n` +
-        `🗓 <b>${istLabel} IST</b>\n` +
+        `👤 <b>${clientName || 'Client'}</b>\n` +
+        `📱 ${clientContact || 'N/A'}\n\n` +
+        `📋 ${projectTitle || 'Discovery Call'}\n` +
+        `🗓 <b>${istLabel}</b>\n` +
         `🔗 ${meetLink}`
     );
 

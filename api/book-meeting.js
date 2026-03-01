@@ -1,7 +1,6 @@
 require('dotenv').config({ path: '.env.local' });
 const { createMeetingEvent, isSlotFree, getFreeSlots } = require('../lib/googleCalendar');
 const { parseNaturalSlot, isTimeInWindow, isWeekday } = require('../lib/timeUtils');
-const { softClash } = require('./soft-booking');
 
 module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -60,10 +59,9 @@ module.exports = async (req, res) => {
             });
         }
 
-        // ── STEP 4: Clash — Calendar + soft-bookings.json ────────────────────
-        const calFree   = await isSlotFree(eventStart, eventEnd);
-        const softTaken = softClash(eventStart.toISOString(), durationMins, callerSessionId || '');
-        if (!calFree || softTaken) {
+        // ── STEP 4: Calendar clash ────────────────────────────────────────────
+        const calFree = await isSlotFree(eventStart, eventEnd);
+        if (!calFree) {
             let slots = [];
             try { slots = await getFreeSlots(); } catch(e) {}
             return res.status(409).json({
