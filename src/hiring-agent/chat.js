@@ -556,20 +556,27 @@ async function fetchAgentResponse() {
             displayText = displayText.split('Perfect,')[0].trim();
         }
 
-        // Bug 3 guard: NEVER show contact card if reply is a time rejection
-        // The AI sometimes emits SHOW_CONTACT_CARD even in a rejection message
+        // Guard: NEVER show SHOW_CONTACT_CARD while the AI is rejecting a time
+        const dl = displayText.toLowerCase();
         const isRejectionReply =
-            displayText.toLowerCase().includes("won't work") ||
-            displayText.toLowerCase().includes("doesn't work") ||
-            displayText.toLowerCase().includes("can you pick") ||
-            displayText.toLowerCase().includes("what day works") ||
-            displayText.toLowerCase().includes("not valid") ||
-            displayText.toLowerCase().includes("invalid") ||
-            displayText.toLowerCase().includes("can't book") ||
-            displayText.toLowerCase().includes("outside") ||
-            displayText.toLowerCase().includes("weekend") ||
-            displayText.toLowerCase().includes("in the past");
+            dl.includes("outside available hours") ||
+            dl.includes("available on weekends") ||
+            dl.includes("pick a weekday") ||
+            dl.includes("at least 1 hour notice") ||
+            dl.includes("pick a later time") ||
+            dl.includes("slot is already taken") ||
+            dl.includes("won't work") ||
+            dl.includes("doesn't work") ||
+            dl.includes("can you pick") ||
+            dl.includes("what day works") ||
+            dl.includes("not valid") ||
+            dl.includes("invalid") ||
+            dl.includes("can't book") ||
+            dl.includes("outside") ||
+            dl.includes("weekend") ||
+            dl.includes("in the past");
         if (isRejectionReply) showCard = false;
+
 
         // Only show bot message if there's actual text
         if (displayText.length > 0) {

@@ -66,21 +66,53 @@ module.exports = async (req, res) => {
         const eventStart = new Date(chosenTime);
         const eventEnd   = new Date(eventStart.getTime() + durationMins * 60 * 1000);
 
-        // Clash check 1: Google Calendar
-        const calFree = await isSlotFree(eventStart, eventEnd);
-        if (!calFree) {
-            const { getFreeSlots } = require('../lib/googleCalendar');
-            let slots = [];
-            try { slots = await getFreeSlots(); } catch(e) {}
-            return res.status(409).json({ error: 'slot_taken', message: 'That slot is already booked.', slots });
+        // STEP 1: Time window 5:30–9:30 PM IST
+        if (!isTimeInWindow(eventStart)) {
+            return res.status(400).json({
+                error: 'outside_hours',
+                message: "That time is outside available hours. Hardik is free 5:30–9:30 PM IST only."
+            });
         }
 
-        // Clash check 2: soft-bookings.json
-        if (softClash(chosenTime, durationMins, sessionId)) {
-            const { getFreeSlots } = require('../lib/googleCalendar');
+        // STEP 2: Weekday Mon–Fri
+        if (!isWeekday(eventStart)) {
+            return res.status(400).json({
+                error: 'weekend',
+                message: "Hardik isn't available on weekends. Pick a weekday (Mon–Fri)."
+            });
+        }
+
+        // STEP 3: At least 1 hour from now
+        const minimumTime = new Date(Date.now() + 60 * 60 * 1000);
+        if (eventStart < minimumTime) {
+            return res.status(400).json({
+                error: 'too_soon',
+                message: "Need at least 1 hour notice. Pick a later time."
+            });
+        }
+
+        // STEP 4: Clash — Google Calendar
+        const { getFreeSlots } = require('../lib/googleCalendar');
+        const calFree = await isSlotFree(eventStart, eventEnd);
+        if (!calFree) {
             let slots = [];
             try { slots = await getFreeSlots(); } catch(e) {}
-            return res.status(409).json({ error: 'slot_taken', message: 'Another client just grabbed that slot. Pick another time!', slots });
+            return res.status(409).json({
+                error: 'slot_taken',
+                message: "That slot is already taken. Pick a different time.",
+                slots
+            });
+        }
+
+        // STEP 4: Clash — soft-bookings.json
+        if (softClash(chosenTime, durationMins, sessionId)) {
+            let slots = [];
+            try { slots = await getFreeSlots(); } catch(e) {}
+            return res.status(409).json({
+                error: 'slot_taken',
+                message: "That slot is already taken. Pick a different time.",
+                slots
+            });
         }
 
         // Write soft booking
@@ -116,19 +148,44 @@ module.exports = async (req, res) => {
         const eventStart = new Date(newTime);
         const eventEnd   = new Date(eventStart.getTime() + durationMins * 60 * 1000);
 
-        // Validate time
-        if (!isTimeInWindow(eventStart)) return res.status(400).json({ error: 'outside_hours', message: "That time is outside 5:30–9:30 PM IST." });
-        if (!isWeekday(eventStart))      return res.status(400).json({ error: 'weekend', message: "Hardik is only available Mon–Fri." });
+        // STEP 1: Time window 5:30–9:30 PM IST
+        if (!isTimeInWindow(eventStart)) {
+            return res.status(400).json({
+                error: 'outside_hours',
+                message: "That time is outside available hours. Hardik is free 5:30–9:30 PM IST only."
+            });
+        }
+
+        // STEP 2: Weekday Mon–Fri
+        if (!isWeekday(eventStart)) {
+            return res.status(400).json({
+                error: 'weekend',
+                message: "Hardik isn't available on weekends. Pick a weekday (Mon–Fri)."
+            });
+        }
+
+        // STEP 3: At least 1 hour from now
         const minimumTime = new Date(Date.now() + 60 * 60 * 1000);
-        if (eventStart < minimumTime)    return res.status(400).json({ error: 'too_soon', message: "Need at least 1 hour notice." });
+        if (eventStart < minimumTime) {
+            return res.status(400).json({
+                error: 'too_soon',
+                message: "Need at least 1 hour notice. Pick a later time."
+            });
+        }
 
-        // Calendar clash
+        // STEP 4: Clash — Calendar + soft-bookings (excluding self)
         const calFree = await isSlotFree(eventStart, eventEnd);
-        if (!calFree) return res.status(409).json({ error: 'slot_taken', message: 'That slot is already booked in the calendar.' });
-
-        // Soft clash (excluding self)
+        if (!calFree) {
+            return res.status(409).json({
+                error: 'slot_taken',
+                message: "That slot is already taken. Pick a different time."
+            });
+        }
         if (softClash(newTime, durationMins, sessionId)) {
-            return res.status(409).json({ error: 'slot_taken', message: 'Another client has that slot held. Pick another time!' });
+            return res.status(409).json({
+                error: 'slot_taken',
+                message: "That slot is already taken. Pick a different time."
+            });
         }
 
         // Update

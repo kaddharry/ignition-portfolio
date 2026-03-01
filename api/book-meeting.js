@@ -1,17 +1,17 @@
 require('dotenv').config({ path: '.env.local' });
 const { createMeetingEvent, isSlotFree, getFreeSlots } = require('../lib/googleCalendar');
 const { parseNaturalSlot, isTimeInWindow, isWeekday } = require('../lib/timeUtils');
+const { softClash } = require('./soft-booking');
 
 module.exports = async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     try {
-        const { slot, clientName, clientEmail, clientContact, projectTitle } = req.body;
+        const { slot, clientName, clientEmail, clientContact, projectTitle, sessionId: callerSessionId } = req.body;
         console.log('[book-meeting] Request:', { slot, clientName, projectTitle });
 
-        // ── STEP 1: Parse the slot ────────────────────────────────────────────
+        // ── PARSE ─────────────────────────────────────────────────────────────
         const eventStart = parseNaturalSlot(slot);
-
         if (!eventStart || isNaN(eventStart.getTime())) {
             console.warn('[book-meeting] Could not parse slot:', slot);
             let slots = [];
@@ -26,53 +26,54 @@ module.exports = async (req, res) => {
         const durationMins = parseInt(process.env.MEETING_DURATION_MINS || 30);
         const eventEnd = new Date(eventStart.getTime() + durationMins * 60 * 1000);
 
-        // ── STEP 2: Check time is within 5:30–9:30 PM IST ────────────────────
+        // ── STEP 1: Time window 5:30–9:30 PM IST ─────────────────────────────
         if (!isTimeInWindow(eventStart)) {
             let slots = [];
             try { slots = await getFreeSlots(); } catch(e) {}
             return res.status(400).json({
                 error: 'outside_hours',
-                message: "That time is outside Hardik's available window (5:30–9:30 PM IST). Pick a time in that window and try again!",
+                message: "That time is outside available hours. Hardik is free 5:30–9:30 PM IST only.",
                 slots
             });
         }
 
-        // ── STEP 3: Check day is Mon–Fri ──────────────────────────────────────
+        // ── STEP 2: Weekday Mon–Fri ───────────────────────────────────────────
         if (!isWeekday(eventStart)) {
             let slots = [];
             try { slots = await getFreeSlots(); } catch(e) {}
             return res.status(400).json({
                 error: 'weekend',
-                message: "Hardik is only available Monday to Friday. Pick a weekday!",
+                message: "Hardik isn't available on weekends. Pick a weekday (Mon–Fri).",
                 slots
             });
         }
 
-        // ── STEP 4: 1-hour minimum notice ────────────────────────────────────
+        // ── STEP 3: At least 1 hour from now ─────────────────────────────────
         const minimumTime = new Date(Date.now() + 60 * 60 * 1000);
         if (eventStart < minimumTime) {
             let slots = [];
             try { slots = await getFreeSlots(); } catch(e) {}
             return res.status(400).json({
                 error: 'too_soon',
-                message: 'Need at least 1 hour notice. Pick a later time!',
+                message: "Need at least 1 hour notice. Pick a later time.",
                 slots
             });
         }
 
-        // ── STEP 5: Calendar clash check ─────────────────────────────────────
-        const free = await isSlotFree(eventStart, eventEnd);
-        if (!free) {
+        // ── STEP 4: Clash — Calendar + soft-bookings.json ────────────────────
+        const calFree   = await isSlotFree(eventStart, eventEnd);
+        const softTaken = softClash(eventStart.toISOString(), durationMins, callerSessionId || '');
+        if (!calFree || softTaken) {
             let slots = [];
             try { slots = await getFreeSlots(); } catch(e) {}
             return res.status(409).json({
                 error: 'slot_taken',
-                message: "That slot is already taken. Pick one of the open times below!",
+                message: "That slot is already taken. Pick a different time.",
                 slots
             });
         }
 
-        // ── STEP 6: Book it! ─────────────────────────────────────────────────
+        // ── BOOK ─────────────────────────────────────────────────────────────
         const result = await createMeetingEvent(
             eventStart.toISOString(),
             eventEnd.toISOString(),
@@ -83,9 +84,9 @@ module.exports = async (req, res) => {
 
         console.log('[book-meeting] Created:', result.meetLink);
         res.status(200).json({
-            meetLink: result.meetLink || '',
-            eventId:  result.eventId  || '',
-            htmlLink: result.htmlLink || '',
+            meetLink:  result.meetLink  || '',
+            eventId:   result.eventId   || '',
+            htmlLink:  result.htmlLink  || '',
             startTime: eventStart.toISOString()
         });
 
