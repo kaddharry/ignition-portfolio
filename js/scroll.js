@@ -1,3 +1,6 @@
+import { inject } from '@vercel/analytics';
+inject();
+
 // Force native browser systems to abandon scroll history and hard reset to 0,0 on refresh
 if (history.scrollRestoration) {
     history.scrollRestoration = 'manual';
